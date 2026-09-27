@@ -1,0 +1,10 @@
+# QueueSense runtime variables
+DATABASE_URL=mysql://<user>:<password>@<host>/<database>
+JWT_SECRET=<long-random-session-secret>
+VITE_APP_ID=<oauth-app-id>
+OAUTH_SERVER_URL=https://api.manus.im
+VITE_OAUTH_PORTAL_URL=https://auth.manus.im
+
+# Optional hosted Supabase adapter
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<public-anon-key>
