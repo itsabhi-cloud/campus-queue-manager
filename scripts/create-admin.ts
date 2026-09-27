@@ -4,6 +4,7 @@
  * Prints a one-time activation code; the admin sets their own password at /activate.
  */
 import { parseArgs } from "node:util";
+import { ZodError } from "zod";
 import { eq } from "drizzle-orm";
 import { users } from "../drizzle/schema";
 import { emailSchema, issueAuthCode, nameSchema } from "../server/accounts";
@@ -56,10 +57,13 @@ try {
     `Open /activate, enter the email and code, and choose a password.\n`
   );
 } catch (error) {
-  console.error(
-    "Could not create administrator:",
-    error instanceof Error ? error.message : error
-  );
+  const message =
+    error instanceof ZodError
+      ? error.issues[0]?.message
+      : error instanceof Error
+        ? error.message
+        : String(error);
+  console.error(`Could not create administrator: ${message}`);
   process.exitCode = 1;
 } finally {
   await closeDatabase();

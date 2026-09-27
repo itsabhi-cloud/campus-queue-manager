@@ -41,10 +41,15 @@ export default function AdminQueues() {
           <div className="panel-head">
             <div className="cell-with-icon">
               <ServiceIcon kind={service.kind} />
-              <h3 id={`svc-${service.id}`}>{service.name}</h3>
+              <h2 id={`svc-${service.id}`}>{service.name}</h2>
             </div>
           </div>
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            tabIndex={0}
+            role="region"
+            aria-label={`${service.name} counters`}
+          >
             <table className="data-table stack">
               <thead>
                 <tr>

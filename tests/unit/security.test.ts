@@ -12,6 +12,7 @@ import {
 } from "../../server/auth/tokens";
 import { csvCell, parseCsv, toCsv } from "../../server/lib/csv";
 import { RateLimiter } from "../../server/_core/rateLimit";
+import { productionOriginProblem } from "../../server/_core/env";
 
 describe("password hashing", () => {
   it("verifies the right password and rejects others", async () => {
@@ -84,5 +85,21 @@ describe("rate limiter inspection", () => {
     limiter.consume("ip", 1);
     expect(limiter.blockedFor("ip", 2)).toBeGreaterThan(0);
     expect(limiter.blockedFor("other", 2)).toBe(0);
+  });
+});
+
+describe("production origin", () => {
+  it("requires a public https origin unless explicitly running locally", () => {
+    expect(productionOriginProblem(undefined, false)).toMatch(/required/);
+    expect(productionOriginProblem("http://localhost:3000", false)).toMatch(
+      /not localhost/
+    );
+    expect(productionOriginProblem("http://queue.college.edu", false)).toMatch(
+      /https/
+    );
+    expect(
+      productionOriginProblem("https://queue.college.edu", false)
+    ).toBeNull();
+    expect(productionOriginProblem("http://localhost:3000", true)).toBeNull();
   });
 });

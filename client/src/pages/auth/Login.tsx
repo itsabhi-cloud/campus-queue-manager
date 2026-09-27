@@ -43,7 +43,7 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <form className="auth-card" onSubmit={submit} noValidate>
         <BrandMark />
         <div>
@@ -103,6 +103,6 @@ export default function Login() {
           administrators only.
         </p>
       </form>
-    </div>
+    </main>
   );
 }

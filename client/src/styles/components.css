@@ -403,7 +403,7 @@ section + .panel {
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
-.stat dd {
+.stat dd:not(.stat-helper) {
   margin: 2px 0 0;
   font-family: var(--font-display);
   font-weight: 700;
@@ -411,9 +411,9 @@ section + .panel {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-.stat small {
+.stat .stat-helper {
   display: block;
-  margin-top: 2px;
+  margin: 2px 0 0;
   font-size: var(--text-xs);
   color: var(--ink-3);
 }
@@ -865,7 +865,7 @@ details > summary {
 .empty-state svg {
   color: var(--ink-3);
 }
-.empty-state h3 {
+.empty-state .empty-title {
   font-size: var(--text-md);
 }
 .empty-state p {
@@ -1097,7 +1097,7 @@ details > summary {
   .stat {
     padding: var(--s-3) var(--s-4);
   }
-  .stat dd {
+  .stat dd:not(.stat-helper) {
     font-size: 26px;
   }
   .stat-strip {

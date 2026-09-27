@@ -370,7 +370,9 @@ function NowServing({ board }: { board: Board }) {
       </div>
       {board.inProgress.length === 0 ? (
         <div className="board-empty">
-          <strong>Nobody at the counter</strong>
+          <strong>
+            {batch ? "No trip in progress" : "Nobody at the counter"}
+          </strong>
           {board.waiting.length
             ? `${board.waiting.length} waiting. Call the next token when you're ready.`
             : "Nobody is waiting."}
@@ -602,7 +604,7 @@ function CounterBoard({ counterId }: { counterId: number }) {
           </section>
         </div>
 
-        <aside className="console-main">
+        <aside className="console-main" aria-label="Waiting line and activity">
           <section className="panel" aria-labelledby="waiting-heading">
             <PanelHead
               id="waiting-heading"
@@ -894,7 +896,7 @@ export default function StaffConsole({ counterId }: { counterId?: string }) {
                 </option>
                 {list.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.serviceName} · {c.groupName} · {c.name}
+                    {c.name} ({c.serviceName}, {c.groupName})
                   </option>
                 ))}
               </select>

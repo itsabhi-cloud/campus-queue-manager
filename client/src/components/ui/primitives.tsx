@@ -172,7 +172,7 @@ export function Stat({
     <div className={`stat ${alert ? "is-alert" : ""}`}>
       <dt>{label}</dt>
       <dd>{value}</dd>
-      {helper && <small>{helper}</small>}
+      {helper && <dd className="stat-helper">{helper}</dd>}
     </div>
   );
 }
@@ -259,7 +259,7 @@ export function EmptyState({
   return (
     <div className="empty-state">
       <IconCmp size={28} aria-hidden />
-      <h3>{title}</h3>
+      <h2 className="empty-title">{title}</h2>
       {description && <p>{description}</p>}
       {action}
     </div>

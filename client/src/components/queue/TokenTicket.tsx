@@ -202,8 +202,10 @@ export function TokenTicket({
   detailed = false,
 }: {
   entry: ActiveEntry;
+  /** Detailed view is the token's own page, where the token number is the page heading. */
   detailed?: boolean;
 }) {
+  const Heading = detailed ? "h1" : "h3";
   const utils = trpc.useUtils();
   const { state } = useRealtime();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -252,12 +254,12 @@ export function TokenTicket({
             <StatusBadge status={entry.status} />
           )}
         </div>
-        <h3 className="ticket-number" id={`ticket-${entry.id}`}>
+        <Heading className="ticket-number" id={`ticket-${entry.id}`}>
           <span aria-label={`Token ${entry.tokenNumber}`}>
             {entry.tokenNumber}
           </span>
           {entry.isPriority && <Chip tone="outline">Priority</Chip>}
-        </h3>
+        </Heading>
         <p
           className="ticket-message"
           role={entry.status === "CALLED" ? "alert" : undefined}
@@ -302,15 +304,15 @@ export function TokenTicket({
             )}
           </dd>
         </div>
-        {waiting && (
-          <div className="ticket-line">
-            <QueueLine
-              peopleAhead={entry.peopleAhead}
-              unit={entry.group.unitLabel}
-            />
-          </div>
-        )}
       </dl>
+      {waiting && (
+        <div className="ticket-line ticket-line-row">
+          <QueueLine
+            peopleAhead={entry.peopleAhead}
+            unit={entry.group.unitLabel}
+          />
+        </div>
+      )}
 
       {change && (
         <p

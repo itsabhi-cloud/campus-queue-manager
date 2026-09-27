@@ -86,7 +86,12 @@ export default function AdminAudit() {
         </div>
       ) : (
         <div className="panel">
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            tabIndex={0}
+            role="region"
+            aria-label="Audit log entries"
+          >
             <table className="data-table stack">
               <thead>
                 <tr>

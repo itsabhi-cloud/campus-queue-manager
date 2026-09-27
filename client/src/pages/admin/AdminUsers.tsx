@@ -577,7 +577,12 @@ export default function AdminUsers() {
         </div>
       ) : (
         <div className="panel">
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            tabIndex={0}
+            role="region"
+            aria-label="Accounts"
+          >
             <table className="data-table stack">
               <thead>
                 <tr>

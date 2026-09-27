@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import type { AddressInfo } from "node:net";
 import { createServer, type Server } from "node:http";
 import superjson from "superjson";
-import { createApp } from "../../server/_core/app";
+import { createApp, errorHandler } from "../../server/_core/app";
 import {
   createQueue,
   createUser,
@@ -91,7 +91,9 @@ async function openStream(cookie: string) {
 
 describeDb("HTTP API and realtime", () => {
   beforeAll(async () => {
-    server = createServer(createApp());
+    const app = createApp();
+    app.use(errorHandler);
+    server = createServer(app);
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -109,6 +111,16 @@ describeDb("HTTP API and realtime", () => {
       checks: { database: "up", realtime: { transport: "sse" } },
     });
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("answers malformed JSON with a 400, not a server error", async () => {
+    const response = await fetch(`${base}/api/trpc/auth.login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{bad json",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Malformed request body." });
   });
 
   it("refuses the realtime stream without a session", async () => {

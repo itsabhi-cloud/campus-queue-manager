@@ -24,7 +24,30 @@ const schema = z.object({
     .default(168),
   TRUST_PROXY: z.string().optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  /** Only for running a production build on your own machine over http://localhost. */
+  ALLOW_INSECURE_ORIGIN: z.enum(["true", "false"]).default("false"),
 });
+
+/**
+ * Production must be served from a real HTTPS origin: secure cookies and the CSRF origin check
+ * both depend on it. Returns a problem description, or null when the origin is acceptable.
+ */
+export function productionOriginProblem(
+  origin: string | undefined,
+  allowInsecure: boolean
+): string | null {
+  if (!origin) return "APP_ORIGIN is required in production.";
+  const url = new URL(origin);
+  const local =
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+    url.hostname.endsWith(".localhost");
+  if (allowInsecure) return null;
+  if (local)
+    return "APP_ORIGIN must be your public domain in production, not localhost.";
+  if (url.protocol !== "https:")
+    return "APP_ORIGIN must use https:// in production.";
+  return null;
+}
 
 export type Env = z.infer<typeof schema>;
 
@@ -48,10 +71,13 @@ function loadEnv(): Env {
     );
   }
   const env = parsed.data;
-  if (env.NODE_ENV === "production" && !env.APP_ORIGIN) {
-    throw new Error(
-      "Invalid environment configuration:\n  - APP_ORIGIN is required in production."
+  if (env.NODE_ENV === "production") {
+    const problem = productionOriginProblem(
+      env.APP_ORIGIN,
+      env.ALLOW_INSECURE_ORIGIN === "true"
     );
+    if (problem)
+      throw new Error(`Invalid environment configuration:\n  - ${problem}`);
   }
   try {
     new Intl.DateTimeFormat("en-CA", { timeZone: env.CAMPUS_TIMEZONE });

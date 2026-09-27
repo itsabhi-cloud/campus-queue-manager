@@ -366,7 +366,7 @@ function StationRunner({
           </div>
         </section>
 
-        <aside className="console-main">
+        <aside className="console-main" aria-label="Measurements and signal">
           <section className="panel" aria-labelledby="count-title">
             <PanelHead
               id="count-title"

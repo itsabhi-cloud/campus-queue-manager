@@ -231,7 +231,7 @@ export function AppShell({
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <aside className="app-sidebar">
+      <aside className="app-sidebar" aria-label="Sidebar">
         <BrandMark />
         <NavLinks role={user.role} unread={unread} />
         <div className="sidebar-footer">
