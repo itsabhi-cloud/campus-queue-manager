@@ -94,6 +94,88 @@ function useAttention() {
   return { items, loading: catalog.isLoading };
 }
 
+const ACTION_TEXT: Record<string, string> = {
+  "queue.priority_assigned": "gave a token priority",
+  "queue.priority_removed": "removed a token's priority",
+  "queue.merged": "merged a counter's queue",
+  "queue.traffic_updated": "changed traffic",
+  "queue.token_cancelled": "cancelled a token",
+  "counter.paused": "paused a counter",
+  "counter.resumed": "reopened a counter",
+  "counter.offline": "took a counter offline",
+  "user.bulk_import": "imported students",
+  "user.student_created": "added a student",
+  "user.staff_created": "added a staff member",
+  "user.suspended": "suspended an account",
+  "user.enabled": "re-enabled an account",
+  "assignment.changed": "changed counter assignments",
+  "settings.updated": "changed settings",
+};
+
+function detailOf(metadata: Record<string, unknown>) {
+  const parts: string[] = [];
+  if (typeof metadata.tokenNumber === "string")
+    parts.push(metadata.tokenNumber);
+  if (typeof metadata.reason === "string" && metadata.reason)
+    parts.push(metadata.reason);
+  if (typeof metadata.moved === "number")
+    parts.push(`${metadata.moved} tokens moved`);
+  if (typeof metadata.created === "number")
+    parts.push(`${metadata.created} created`);
+  const to = metadata.to as { level?: string } | undefined;
+  if (to?.level) parts.push(`now ${to.level.toLowerCase()}`);
+  return parts.join(", ");
+}
+
+function RecentOperations() {
+  const { pollInterval } = useRealtime();
+  const logs = trpc.admin.audit.useQuery(
+    { page: 1, pageSize: 10 },
+    { refetchInterval: pollInterval || 30_000 }
+  );
+  return (
+    <section className="panel" aria-labelledby="ops-title">
+      <PanelHead
+        id="ops-title"
+        title="Recent operations"
+        description="From the audit log."
+        actions={
+          <Link
+            href="/admin/audit"
+            className="button button-outline button-small"
+          >
+            Full log
+          </Link>
+        }
+      />
+      {logs.isLoading ? (
+        <LoadingBlock rows={1} />
+      ) : logs.error ? (
+        <ErrorState message={errorMessage(logs.error)} onRetry={() => logs.refetch()} />
+      ) : !logs.data || logs.data.rows.length === 0 ? (
+        <p className="muted">No operations recorded yet.</p>
+      ) : (
+        <ul className="activity-list">
+          {logs.data.rows.slice(0, 8).map(({ log, actorName }) => (
+            <li key={log.id}>
+              <div>
+                <strong>{actorName ?? "System"}</strong>{" "}
+                {ACTION_TEXT[log.action] ?? log.action.replace(/[._]/g, " ")}
+                {detailOf(log.metadata) && (
+                  <small>{detailOf(log.metadata)}</small>
+                )}
+              </div>
+              <time dateTime={new Date(log.createdAt).toISOString()}>
+                {relativeTime(log.createdAt)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function AdminOverview() {
   const { pollInterval, state } = useRealtime();
   const overview = trpc.admin.overview.useQuery(undefined, {
@@ -195,55 +277,60 @@ export default function AdminOverview() {
             </ul>
           )}
         </section>
-        <section className="panel" aria-labelledby="health-title">
-          <PanelHead id="health-title" title="System health" />
-          <dl className="status-list">
-            <div>
-              <dt>Database</dt>
-              <dd
-                className={
-                  health.data?.checks.database === "up"
-                    ? "success-text"
-                    : "danger-text"
-                }
-              >
-                {health.isLoading
-                  ? "Checking"
-                  : health.data
-                    ? `${health.data.checks.database === "up" ? "Up" : "Down"}, ${health.data.checks.databaseLatencyMs} ms`
-                    : "Unreachable"}
-              </dd>
-            </div>
-            <div>
-              <dt>Live updates</dt>
-              <dd className={state === "live" ? "success-text" : "danger-text"}>
-                {state === "live"
-                  ? `Connected, ${o.live.realtimeConnections} open`
-                  : state}
-              </dd>
-            </div>
-            <div>
-              <dt>Server uptime</dt>
-              <dd>
-                {health.data ? durationLabel(health.data.uptimeSeconds) : "–"}
-              </dd>
-            </div>
-            <div>
-              <dt>Accounts</dt>
-              <dd>
-                {o.people.activeStudents} students active,{" "}
-                {o.people.pendingStudents} not activated
-              </dd>
-            </div>
-            <div>
-              <dt>Staff</dt>
-              <dd>
-                {o.people.staff} staff, {o.people.admins} admin
-                {o.people.admins === 1 ? "" : "s"}
-              </dd>
-            </div>
-          </dl>
-        </section>
+        <div className="console-main">
+          <section className="panel" aria-labelledby="health-title">
+            <PanelHead id="health-title" title="System health" />
+            <dl className="status-list">
+              <div>
+                <dt>Database</dt>
+                <dd
+                  className={
+                    health.data?.checks.database === "up"
+                      ? "success-text"
+                      : "danger-text"
+                  }
+                >
+                  {health.isLoading
+                    ? "Checking"
+                    : health.data
+                      ? `${health.data.checks.database === "up" ? "Up" : "Down"}, ${health.data.checks.databaseLatencyMs} ms`
+                      : "Unreachable"}
+                </dd>
+              </div>
+              <div>
+                <dt>Live updates</dt>
+                <dd
+                  className={state === "live" ? "success-text" : "danger-text"}
+                >
+                  {state === "live"
+                    ? `Connected, ${o.live.realtimeConnections} open`
+                    : state}
+                </dd>
+              </div>
+              <div>
+                <dt>Server uptime</dt>
+                <dd>
+                  {health.data ? durationLabel(health.data.uptimeSeconds) : "–"}
+                </dd>
+              </div>
+              <div>
+                <dt>Accounts</dt>
+                <dd>
+                  {o.people.activeStudents} students active,{" "}
+                  {o.people.pendingStudents} not activated
+                </dd>
+              </div>
+              <div>
+                <dt>Staff</dt>
+                <dd>
+                  {o.people.staff} staff, {o.people.admins} admin
+                  {o.people.admins === 1 ? "" : "s"}
+                </dd>
+              </div>
+            </dl>
+          </section>
+          <RecentOperations />
+        </div>
       </div>
 
       <section className="panel" aria-labelledby="services-title">

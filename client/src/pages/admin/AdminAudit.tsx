@@ -87,7 +87,7 @@ export default function AdminAudit() {
       ) : (
         <div className="panel">
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table stack">
               <thead>
                 <tr>
                   <th scope="col">When</th>
@@ -100,8 +100,10 @@ export default function AdminAudit() {
               <tbody>
                 {logs.data!.rows.map(({ log, actorName, actorRole }) => (
                   <tr key={log.id}>
-                    <td className="nowrap">{dateTime(log.createdAt)}</td>
-                    <td>
+                    <td data-label="When" className="nowrap">
+                      {dateTime(log.createdAt)}
+                    </td>
+                    <td data-label="Actor">
                       {actorName ?? "System"}
                       {actorRole && (
                         <small className="block muted">
@@ -109,14 +111,14 @@ export default function AdminAudit() {
                         </small>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Action">
                       <code>{log.action}</code>
                     </td>
-                    <td>
+                    <td data-label="Entity">
                       {log.entityType}
                       {log.entityId ? ` #${log.entityId}` : ""}
                     </td>
-                    <td>
+                    <td data-label="Details">
                       <small>{summarize(log.metadata) || "—"}</small>
                     </td>
                   </tr>

@@ -578,7 +578,7 @@ export default function AdminUsers() {
       ) : (
         <div className="panel">
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table stack">
               <thead>
                 <tr>
                   <th scope="col">Name</th>
@@ -602,7 +602,11 @@ export default function AdminUsers() {
                       <strong>{row.name}</strong>
                       <small className="block muted">{row.email}</small>
                     </th>
-                    <td>
+                    <td
+                      data-label={
+                        audience === "STUDENT" ? "College ID" : "Role"
+                      }
+                    >
                       {audience === "STUDENT" ? (
                         row.collegeId
                       ) : (
@@ -622,17 +626,21 @@ export default function AdminUsers() {
                         </select>
                       )}
                     </td>
-                    <td>
+                    <td
+                      data-label={
+                        audience === "STUDENT" ? "Department" : "Counters"
+                      }
+                    >
                       {audience === "STUDENT"
                         ? (row.department ?? "—")
                         : row.role === "ADMIN"
                           ? "All counters"
                           : `${row.counterIds.length} assigned`}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <AccountStatusBadge status={row.status} />
                     </td>
-                    <td>
+                    <td data-label="Last sign-in">
                       {row.lastSignedInAt
                         ? relativeTime(row.lastSignedInAt)
                         : "Never"}

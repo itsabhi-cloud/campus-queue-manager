@@ -1,7 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { Bell, BellRing, CheckCheck } from "lucide-react";
+import {
+  Bell,
+  BellRing,
+  CheckCheck,
+  CircleCheck,
+  CircleX,
+  GitMerge,
+  Pause,
+  PowerOff,
+  Play,
+  Star,
+  Ticket,
+  TrendingDown,
+  TrendingUp,
+  ListOrdered,
+  type LucideIcon,
+} from "lucide-react";
+import type { NotificationType } from "@shared/domain";
 import {
   EmptyState,
   ErrorState,
@@ -11,7 +28,49 @@ import {
 } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/errors";
 import { relativeTime } from "@/lib/format";
-import { trpc } from "@/lib/trpc";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
+
+type Item = RouterOutputs["notifications"]["list"]["items"][number];
+type Filter = "all" | "unread" | "turn" | "changes";
+
+/** Your turn: act now. Changes: your place or wait moved. Everything else is a record. */
+const CATEGORY: Record<NotificationType, "turn" | "changes" | "updates"> = {
+  ALMOST_NEXT: "turn",
+  TOKEN_CALLED: "turn",
+  SERVICE_STARTED: "updates",
+  SERVICE_COMPLETED: "updates",
+  QUEUE_JOINED: "updates",
+  TOKEN_CANCELLED: "updates",
+  TOKEN_SKIPPED: "updates",
+  POSITION_CHANGED: "changes",
+  PRIORITY_ADJUSTMENT: "changes",
+  PRIORITY_ASSIGNED: "changes",
+  QUEUE_MERGED: "changes",
+  WAIT_INCREASED: "changes",
+  WAIT_DECREASED: "changes",
+  COUNTER_PAUSED: "changes",
+  COUNTER_RESUMED: "changes",
+  COUNTER_OFFLINE: "changes",
+};
+
+const ICON: Record<NotificationType, LucideIcon> = {
+  ALMOST_NEXT: BellRing,
+  TOKEN_CALLED: BellRing,
+  SERVICE_STARTED: Play,
+  SERVICE_COMPLETED: CircleCheck,
+  QUEUE_JOINED: Ticket,
+  TOKEN_CANCELLED: CircleX,
+  TOKEN_SKIPPED: CircleX,
+  POSITION_CHANGED: ListOrdered,
+  PRIORITY_ADJUSTMENT: ListOrdered,
+  PRIORITY_ASSIGNED: Star,
+  QUEUE_MERGED: GitMerge,
+  WAIT_INCREASED: TrendingUp,
+  WAIT_DECREASED: TrendingDown,
+  COUNTER_PAUSED: Pause,
+  COUNTER_RESUMED: Play,
+  COUNTER_OFFLINE: PowerOff,
+};
 
 function BrowserAlertsButton() {
   const supported = typeof Notification !== "undefined";
@@ -20,13 +79,15 @@ function BrowserAlertsButton() {
   );
   if (!supported) return null;
   if (permission === "granted")
-    return <span className="chip chip-go">Browser alerts on</span>;
+    return <span className="chip chip-go">Phone alerts on</span>;
   return (
     <button
       className="button button-outline button-small"
       disabled={permission === "denied"}
       title={
-        permission === "denied" ? "Blocked in your browser settings" : undefined
+        permission === "denied"
+          ? "Blocked in your browser settings"
+          : "Show alerts even when QueueSense is in the background"
       }
       onClick={async () =>
         setPermission(await Notification.requestPermission())
@@ -35,16 +96,63 @@ function BrowserAlertsButton() {
       <BellRing size={14} aria-hidden />{" "}
       {permission === "denied"
         ? "Browser alerts blocked"
-        : "Enable browser alerts"}
+        : "Turn on browser alerts"}
     </button>
+  );
+}
+
+function isToday(date: Date | string) {
+  return new Date(date).toDateString() === new Date().toDateString();
+}
+
+function NotificationRow({
+  item,
+  onRead,
+}: {
+  item: Item;
+  onRead: (id: number) => void;
+}) {
+  const Icon = ICON[item.type];
+  const category = CATEGORY[item.type];
+  return (
+    <li className={`${item.readAt ? "" : "is-unread"} cat-${category}`}>
+      <span className="notification-icon" aria-hidden>
+        <Icon size={16} />
+      </span>
+      <div className="notification-body">
+        <strong>
+          {!item.readAt && <span className="sr-only">Unread: </span>}
+          {item.title}
+        </strong>
+        <p>{item.message}</p>
+        <small>
+          {relativeTime(item.createdAt)}
+          {item.queueEntryId && (
+            <>
+              {", "}
+              <Link href={`/app/tokens/${item.queueEntryId}`}>view token</Link>
+            </>
+          )}
+        </small>
+      </div>
+      {!item.readAt && (
+        <button
+          className="text-button"
+          onClick={() => onRead(item.id)}
+          aria-label={`Mark "${item.title}" as read`}
+        >
+          Mark read
+        </button>
+      )}
+    </li>
   );
 }
 
 export default function Notifications() {
   const utils = trpc.useUtils();
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const list = trpc.notifications.list.useInfiniteQuery(
-    { limit: 20, unreadOnly: filter === "unread" },
+    { limit: 30, unreadOnly: filter === "unread" },
     { getNextPageParam: last => last.nextCursor ?? undefined }
   );
   const refresh = () => void utils.notifications.invalidate();
@@ -55,13 +163,41 @@ export default function Notifications() {
     onSuccess: refresh,
     onError: e => toast.error(errorMessage(e)),
   });
-  const items = list.data?.pages.flatMap(page => page.items) ?? [];
+  const items = useMemo(() => {
+    const all = list.data?.pages.flatMap(page => page.items) ?? [];
+    return filter === "turn" || filter === "changes"
+      ? all.filter(item => CATEGORY[item.type] === filter)
+      : all;
+  }, [list.data, filter]);
+  const today = items.filter(item => isToday(item.createdAt));
+  const earlier = items.filter(item => !isToday(item.createdAt));
+  const onRead = (id: number) => markRead.mutate({ ids: [id] });
+
+  const emptyText: Record<Filter, { title: string; description: string }> = {
+    all: {
+      title: "No notifications yet",
+      description:
+        "We'll tell you when you join a queue, when your turn is close, and if anything changes.",
+    },
+    unread: {
+      title: "You're all caught up",
+      description: "New updates about your tokens will appear here.",
+    },
+    turn: {
+      title: "Nothing needs you right now",
+      description: "When you're almost next or called, it shows up here.",
+    },
+    changes: {
+      title: "No changes to your queues",
+      description: "Moves, merges, pauses and big wait changes appear here.",
+    },
+  };
 
   return (
     <>
       <PageHeader
         title="Notifications"
-        subtitle="Queue updates that need your attention. New ones also pop up while QueueSense is open."
+        subtitle="Updates about your tokens. While QueueSense is open, new ones also pop up."
         actions={
           <>
             <BrowserAlertsButton />
@@ -82,10 +218,12 @@ export default function Notifications() {
         items={[
           { value: "all", label: "All" },
           { value: "unread", label: "Unread" },
+          { value: "turn", label: "Your turn" },
+          { value: "changes", label: "Changes" },
         ]}
       />
       {list.isLoading ? (
-        <LoadingBlock rows={3} />
+        <LoadingBlock rows={3} label="Loading notifications" />
       ) : list.error ? (
         <ErrorState
           message={errorMessage(list.error)}
@@ -93,62 +231,42 @@ export default function Notifications() {
         />
       ) : items.length === 0 ? (
         <div className="panel">
-          <EmptyState
-            icon={Bell}
-            title={
-              filter === "unread"
-                ? "You're all caught up"
-                : "No notifications yet"
-            }
-            description="We'll notify you when you join a queue, when your turn approaches, and if anything changes."
-          />
+          <EmptyState icon={Bell} {...emptyText[filter]} />
         </div>
       ) : (
         <div className="panel">
-          <ul className="notification-list">
-            {items.map(item => (
-              <li
-                key={item.id}
-                className={`${item.readAt ? "" : "is-unread"} ${item.type === "TOKEN_CALLED" || item.type === "ALMOST_NEXT" ? "is-urgent" : ""}`}
+          {[
+            { label: "Today", rows: today },
+            { label: "Earlier", rows: earlier },
+          ]
+            .filter(group => group.rows.length > 0)
+            .map(group => (
+              <section
+                key={group.label}
+                aria-label={group.label}
+                className="notification-group"
               >
-                <span
-                  className={`notification-dot type-${item.type.toLowerCase()}`}
-                  aria-hidden
-                />
-                <div className="notification-body">
-                  <strong>{item.title}</strong>
-                  <p>{item.message}</p>
-                  <small>
-                    {relativeTime(item.createdAt)}
-                    {item.queueEntryId && (
-                      <>
-                        {" · "}
-                        <Link href={`/app/tokens/${item.queueEntryId}`}>
-                          View token
-                        </Link>
-                      </>
-                    )}
-                  </small>
-                </div>
-                {!item.readAt && (
-                  <button
-                    className="text-button"
-                    onClick={() => markRead.mutate({ ids: [item.id] })}
-                    aria-label={`Mark "${item.title}" as read`}
-                  >
-                    Mark read
-                  </button>
-                )}
-              </li>
+                <h2>{group.label}</h2>
+                <ul className="notification-list">
+                  {group.rows.map(item => (
+                    <NotificationRow
+                      key={item.id}
+                      item={item}
+                      onRead={onRead}
+                    />
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
           {list.hasNextPage && (
             <button
-              className="button button-outline button-full"
+              className="button button-outline button-full mt-4"
               onClick={() => list.fetchNextPage()}
               disabled={list.isFetchingNextPage}
             >
-              {list.isFetchingNextPage ? "Loading…" : "Load older"}
+              {list.isFetchingNextPage
+                ? "Loading…"
+                : "Show older notifications"}
             </button>
           )}
         </div>

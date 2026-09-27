@@ -20,16 +20,24 @@ const BOARD = [
 
 const STEPS = [
   {
-    title: "Take a token",
-    text: "Choose a service and a counter, or let us pick the shortest line.",
+    title: "Get a token",
+    text: "Pick a service and counter, or let QueueSense choose the shortest line.",
   },
   {
     title: "Leave the line",
-    text: "Your place is held on the server. Close the app if you like; you won't lose it.",
+    text: "Your place is held on the server, even if you close the app.",
   },
   {
-    title: "Come back when called",
-    text: "Watch your position and estimated wait, and get an alert when you're almost up.",
+    title: "Watch your position",
+    text: "See people ahead and an estimated wait that updates live.",
+  },
+  {
+    title: "Get notified",
+    text: "We tell you when you're almost up, and if anything changes.",
+  },
+  {
+    title: "Arrive when needed",
+    text: "Walk up when you're called. No standing around.",
   },
 ];
 
@@ -84,9 +92,9 @@ export default function Landing() {
               <span>Don't stand in line.</span> <span>Know your turn.</span>
             </h1>
             <p className="landing-lede">
-              QueueSense holds your place at busy campus counters. Take a token
-              on your phone, get on with your day, and come back when it's
-              nearly your turn.
+              Join campus queues on your phone, leave the line, and come back
+              when your turn is close. QueueSense shows your live position and
+              an honest wait estimate.
             </p>
             <div className="page-actions">
               <Link href={home} className="button button-primary button-large">

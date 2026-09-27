@@ -7,6 +7,21 @@ leave the physical line, watch their live position and an estimated wait, and ge
 their turn approaches. Staff run counters from a console; administrators configure services,
 people and policy.
 
+## Problem
+
+Students lose time standing in physical lines at fee counters, print centres, cafeterias and lift
+lobbies, often without knowing whether the wait is five minutes or forty. Leaving the line means
+losing your place.
+
+## Objectives
+
+- Let students hold a place digitally and leave the physical line.
+- Show a live, authoritative position and an explainable wait estimate.
+- Tell students when their turn approaches, and when anything changes (calls, delays, merges).
+- Give staff a fast console for calling, serving, priority, pauses and merging counters.
+- Give administrators central control of services, people, analytics and an audit trail.
+- Estimate physical congestion with privacy-preserving computer vision, without identifying anyone.
+
 It covers four campus services — **Administration, Printing, Cafeteria and Elevator/Lift** — with
 one configurable queue engine (no per-service code paths).
 
@@ -30,6 +45,29 @@ one configurable queue engine (no per-service code paths).
 | Notifications | Joined, almost-next, called, serving, completed, skipped, cancelled, merged, priority, position change, wait increased/decreased, counter paused/offline/resumed — with per-student preferences |
 | Computer vision | TensorFlow.js + COCO-SSD in the browser, person-only, ROI filter, median smoothing, aggregate-only reporting, stale detection |
 
+## Demo script (about 5 minutes)
+
+Seed demo data with `pnpm db:reset:dev`, run `pnpm dev`, and use two browsers (or one normal and
+one private window) because accounts in the same browser share a session. Development logins are
+listed at the top of `scripts/seed-dev.ts`.
+
+1. **Student** (`student09@queuesense.dev`): open *Campus services*, pick *Printing*, choose
+   *Report / Bulk Printing*, *Report Counter B*, and press **Get a print token**. The "You're in"
+   banner and the ticket appear with position, people ahead and a live estimated wait.
+2. **Staff** (`staff.print@queuesense.dev`, second browser): open *Report Counter B* and press
+   **Call next**. The student's ticket updates without a refresh ("Moved up to position 2").
+3. Staff: **Adjust traffic** to *Heavy* with a 5-minute delay and a reason. The student sees
+   "Wait up about … min: Lunch rush" and gets a notification explaining the increase.
+4. Staff: give a waiting token **priority** with a reason. Affected students see their new
+   position and a "Queue order was updated" notification.
+5. Staff: **Take offline or merge** on Report Counter B, merging into Counter A. The student's
+   ticket shows "Report Counter B became unavailable… Your place was kept" and the new position.
+6. **Camera station** (`staff.lift@queuesense.dev`): start the camera for the lift lobby to
+   report an aggregate head count (needs a webcam; see docs/computer-vision.md).
+7. **Admin** (`admin@queuesense.dev`): the overview's *Needs attention* list shows the offline
+   counter and heavy traffic, and *Recent operations* lists the priority, traffic and merge actions.
+8. When staff call the student, the ticket turns signal yellow: "Go to Report Counter A now".
+
 ## Architecture at a glance
 
 ```
@@ -41,13 +79,13 @@ React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queu
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
 [docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
-[docs/deployment.md](docs/deployment.md) · [docs/STATUS.md](docs/STATUS.md) (what is verified) ·
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/STATUS.md](docs/STATUS.md) (what is verified) ·
 [docs/AUDIT.md](docs/AUDIT.md) (starting-point audit)
 
 ## Technology
 
 TypeScript everywhere · React 19, Vite 7, wouter, TanStack Query, tRPC 11, Radix Dialog, Recharts,
-sonner · Express 4 · Drizzle ORM + mysql2 · MySQL 8.0.16+ (CHECK constraints, generated columns) ·
+sonner, plain CSS design tokens (Atkinson Hyperlegible + Barlow Condensed) · Express 4 · Drizzle ORM + mysql2 · MySQL 8.0.16+ (CHECK constraints, generated columns) ·
 zod 4 · TensorFlow.js + COCO-SSD · Vitest.
 
 ## Getting started

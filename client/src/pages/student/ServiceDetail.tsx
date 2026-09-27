@@ -14,8 +14,17 @@ import {
   TrafficBadge,
 } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/errors";
-import { approxMinutes, plural, unitNoun } from "@/lib/format";
+import { approxMinutes, unitNoun } from "@/lib/format";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
+import type { ServiceKind } from "@shared/domain";
+
+const JOIN_LABEL: Record<ServiceKind, string> = {
+  ADMINISTRATION: "Get a token",
+  PRINTING: "Get a print token",
+  CAFETERIA: "Reserve my place",
+  ELEVATOR: "Join the boarding queue",
+  OTHER: "Get a token",
+};
 import { useRealtime } from "@/realtime/RealtimeProvider";
 
 type Group =
@@ -35,9 +44,11 @@ function counterDetail(group: Group, counter: Group["counters"][number]) {
 
 function GroupPanel({
   group,
+  kind,
   heldToken,
 }: {
   group: Group;
+  kind: ServiceKind;
   heldToken?: { id: number; tokenNumber: string };
 }) {
   const utils = trpc.useUtils();
@@ -50,12 +61,9 @@ function GroupPanel({
   );
   const join = trpc.queue.join.useMutation({
     onSuccess: result => {
-      toast.success(`Your token is ${result.tokenNumber}`, {
-        description: `${result.counterName}. ${plural(result.peopleAhead, unitNoun(group.unitLabel, 1), group.unitLabel)} ahead. You can leave the line.`,
-      });
       void utils.queue.myActive.invalidate();
       void utils.catalog.list.invalidate();
-      navigate(`/app/tokens/${result.entryId}`);
+      navigate(`/app/tokens/${result.entryId}?joined=1`);
     },
     onError: error => toast.error(errorMessage(error)),
   });
@@ -74,18 +82,30 @@ function GroupPanel({
       <div className="group-panel-head">
         <div>
           <h2 id={`group-${group.id}`}>{group.name}</h2>
+          {kind === "ELEVATOR" && (
+            <p className="group-kind">Virtual boarding queue</p>
+          )}
           {group.description && <p>{group.description}</p>}
         </div>
         <dl className="group-estimate">
-          <dt>If you join now</dt>
+          <dt>
+            {kind === "ELEVATOR"
+              ? "Estimated wait to board"
+              : "If you join now"}
+          </dt>
           <dd className="num">
             {estimate === null ? "Closed" : approxMinutes(estimate)}
           </dd>
         </dl>
       </div>
       <div className="signals">
-        <span className="num">{group.waiting} waiting</span>
-        <TrafficBadge level={group.traffic.effectiveLevel} />
+        <span className="num">
+          {group.waiting} {unitNoun(group.unitLabel, group.waiting)} waiting
+        </span>
+        <TrafficBadge
+          level={group.traffic.effectiveLevel}
+          label={kind === "ELEVATOR" ? "traffic estimate" : "traffic"}
+        />
         {group.traffic.delaySeconds > 0 && (
           <span>
             +{Math.round(group.traffic.delaySeconds / 60)} min
@@ -159,7 +179,7 @@ function GroupPanel({
             ? "No counter is open right now"
             : join.isPending
               ? "Reserving your place…"
-              : "Get a token"}
+              : JOIN_LABEL[kind]}
         </button>
       )}
     </section>
@@ -206,7 +226,11 @@ export default function ServiceDetail({ slug }: { slug: string }) {
       <PageHeader
         title={service.name}
         subtitle={service.description}
-        actions={<ServiceIcon kind={service.kind} large />}
+        actions={
+          <span className="hide-sm">
+            <ServiceIcon kind={service.kind} large />
+          </span>
+        }
       />
       {service.notice && (
         <Note icon={Info}>
@@ -220,6 +244,7 @@ export default function ServiceDetail({ slug }: { slug: string }) {
           );
           return (
             <GroupPanel
+              kind={service.kind}
               key={group.id}
               group={group}
               heldToken={
