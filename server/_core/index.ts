@@ -1,66 +1,64 @@
-import "dotenv/config";
-import express from "express";
-import { createServer } from "http";
-import net from "net";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
-import { appRouter } from "../routers";
-import { createContext } from "./context";
+import { createServer } from "node:http";
+import { ENV } from "./env";
+import { errorHandler, createApp } from "./app";
+import { logger } from "./logger";
+import { purgeExpiredSessions } from "../auth/sessions";
+import { closeDatabase, pingDatabase } from "../db/client";
+import { recalculateGroups } from "../queue/engine";
+import { closeAllStreams } from "../realtime/sse";
 import { serveStatic, setupVite } from "./vite";
 
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
-    });
-    server.on("error", () => resolve(false));
-  });
-}
-
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
+async function start() {
+  const database = await pingDatabase();
+  if (!database.ok) {
+    logger.error("Cannot reach the database. Check DATABASE_URL and run `pnpm db:migrate`.");
+    process.exit(1);
   }
-  throw new Error(`No available port found starting from ${startPort}`);
-}
 
-async function startServer() {
-  const app = express();
+  const app = createApp();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  registerStorageProxy(app);
-  registerOAuthRoutes(app);
-  // tRPC API
-  app.use(
-    "/api/trpc",
-    createExpressMiddleware({
-      router: appRouter,
-      createContext,
-    })
-  );
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+  if (ENV.NODE_ENV === "development") await setupVite(app, server);
+  else serveStatic(app);
+  app.use(errorHandler);
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // Keep estimates honest when service runs long, and clear out expired sessions.
+  const recalcTimer = setInterval(() => {
+    recalculateGroups(null).catch(error => logger.warn("Periodic recalculation failed", { error }));
+  }, 60_000);
+  const purgeTimer = setInterval(() => {
+    purgeExpiredSessions().catch(error => logger.warn("Session purge failed", { error }));
+  }, 3_600_000);
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(ENV.PORT, () => {
+    logger.info("QueueSense listening", { url: `http://localhost:${ENV.PORT}/`, env: ENV.NODE_ENV });
   });
+  server.on("error", error => {
+    logger.error("HTTP server error", { error });
+    process.exit(1);
+  });
+
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info("Shutting down", { signal });
+    clearInterval(recalcTimer);
+    clearInterval(purgeTimer);
+    closeAllStreams();
+    const force = setTimeout(() => process.exit(1), 10_000);
+    force.unref();
+    server.close(async () => {
+      await closeDatabase().catch(() => undefined);
+      logger.info("Shutdown complete");
+      process.exit(0);
+    });
+    server.closeIdleConnections?.();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
-startServer().catch(console.error);
+start().catch(error => {
+  logger.error("Failed to start", { error });
+  process.exit(1);
+});
