@@ -22,6 +22,13 @@ export class RateLimiter {
     return current.count > this.limit ? current.resetAt - now : 0;
   }
 
+  /** Milliseconds until `key` may act again, without recording an attempt. */
+  blockedFor(key: string, now = Date.now()): number {
+    const current = this.hits.get(key);
+    if (!current || current.resetAt <= now) return 0;
+    return current.count >= this.limit ? current.resetAt - now : 0;
+  }
+
   reset(key: string) {
     this.hits.delete(key);
   }
@@ -39,8 +46,9 @@ export class RateLimiter {
 }
 
 export const limiters = {
-  loginByIp: new RateLimiter(30, 10 * 60_000),
-  activationByIp: new RateLimiter(20, 10 * 60_000),
+  // Only failures are counted, so many students behind one campus NAT can still sign in.
+  loginFailuresByIp: new RateLimiter(50, 10 * 60_000),
+  activationFailuresByIp: new RateLimiter(20, 10 * 60_000),
   mutationsByUser: new RateLimiter(240, 60_000),
   cameraByStation: new RateLimiter(40, 60_000),
 };

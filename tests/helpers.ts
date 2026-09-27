@@ -54,12 +54,10 @@ export async function createUser(
     })
     .$returningId();
   if (role === "STUDENT")
-    await db
-      .insert(studentProfiles)
-      .values({
-        userId: row.id,
-        collegeId: collegeId ?? `T${String(n).padStart(6, "0")}`,
-      });
+    await db.insert(studentProfiles).values({
+      userId: row.id,
+      collegeId: collegeId ?? `T${String(n).padStart(6, "0")}`,
+    });
   else await db.insert(staffProfiles).values({ userId: row.id });
   const [user] = await db.select().from(users).where(eq(users.id, row.id));
   return {

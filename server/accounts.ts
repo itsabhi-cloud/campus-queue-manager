@@ -106,11 +106,11 @@ export async function login(
   res: Response
 ) {
   const ip = (req.ip ?? "unknown").slice(0, 64);
-  const waitMs = limiters.loginByIp.consume(ip);
+  const waitMs = limiters.loginFailuresByIp.blockedFor(ip);
   if (waitMs > 0)
     fail(
       "RATE_LIMITED",
-      `Too many sign-in attempts. Try again in ${Math.ceil(waitMs / 60_000)} minute(s).`
+      `Too many failed sign-in attempts. Try again in ${Math.ceil(waitMs / 60_000)} minute(s).`
     );
 
   const email = input.email.trim().toLowerCase();
@@ -128,6 +128,7 @@ export async function login(
   }
   const valid = await verifyPassword(input.password, user?.passwordHash);
   if (!user || !valid) {
+    limiters.loginFailuresByIp.consume(ip);
     if (user) {
       const failures = user.failedLoginCount + 1;
       const locked = failures >= MAX_FAILED_LOGINS;
@@ -166,7 +167,6 @@ export async function login(
     .set({ failedLoginCount: 0, lockedUntil: null, lastSignedInAt: now })
     .where(eq(users.id, user.id));
   await createSession(user.id, req, res);
-  limiters.loginByIp.reset(ip);
   return publicUser(user);
 }
 
@@ -185,15 +185,13 @@ export async function issueAuthCode(
   const expiresAt = new Date(
     Date.now() + settings.activationCodeDays * 86_400_000
   );
-  await tx
-    .insert(authCodes)
-    .values({
-      userId,
-      codeHash: digest(code),
-      purpose,
-      expiresAt,
-      createdByUserId: actorUserId,
-    });
+  await tx.insert(authCodes).values({
+    userId,
+    codeHash: digest(code),
+    purpose,
+    expiresAt,
+    createdByUserId: actorUserId,
+  });
   return { code, expiresAt, purpose };
 }
 
@@ -203,7 +201,7 @@ export async function activate(
   res: Response
 ) {
   const ip = (req.ip ?? "unknown").slice(0, 64);
-  const waitMs = limiters.activationByIp.consume(ip);
+  const waitMs = limiters.activationFailuresByIp.blockedFor(ip);
   if (waitMs > 0)
     fail(
       "RATE_LIMITED",
@@ -228,11 +226,13 @@ export async function activate(
       )
       .for("update")
       .limit(1);
-    if (!row)
+    if (!row) {
+      limiters.activationFailuresByIp.consume(ip);
       fail(
         "INVALID_CODE",
         "That code is invalid, already used, or expired. Ask the administration office for a new one."
       );
+    }
     if (row.user.status === "SUSPENDED" || row.user.status === "DISABLED") {
       fail(
         "ACCOUNT_INACTIVE",
@@ -582,23 +582,19 @@ export async function createUser(
         })
         .$returningId();
       if (input.role === "STUDENT") {
-        await tx
-          .insert(studentProfiles)
-          .values({
-            userId: created.id,
-            collegeId: input.collegeId,
-            department: input.department ?? null,
-            phone: input.phone ?? null,
-          });
+        await tx.insert(studentProfiles).values({
+          userId: created.id,
+          collegeId: input.collegeId,
+          department: input.department ?? null,
+          phone: input.phone ?? null,
+        });
       } else {
-        await tx
-          .insert(staffProfiles)
-          .values({
-            userId: created.id,
-            employeeId: input.employeeId || null,
-            designation: input.designation || null,
-            phone: input.phone ?? null,
-          });
+        await tx.insert(staffProfiles).values({
+          userId: created.id,
+          employeeId: input.employeeId || null,
+          designation: input.designation || null,
+          phone: input.phone ?? null,
+        });
       }
       const code = await issueAuthCode(tx, created.id, "ACTIVATION", actor.id);
       await audit(tx, {
@@ -1056,16 +1052,14 @@ export async function commitStudentImport(
     }> = [];
     for (let i = 0; i < valid.length; i += 500) {
       const chunk = valid.slice(i, i + 500);
-      await tx
-        .insert(users)
-        .values(
-          chunk.map(row => ({
-            email: row.data!.email,
-            name: row.data!.name,
-            role: "STUDENT" as const,
-            status: "PENDING" as const,
-          }))
-        );
+      await tx.insert(users).values(
+        chunk.map(row => ({
+          email: row.data!.email,
+          name: row.data!.name,
+          role: "STUDENT" as const,
+          status: "PENDING" as const,
+        }))
+      );
       const inserted = await tx
         .select({ id: users.id, email: users.email })
         .from(users)
@@ -1076,16 +1070,14 @@ export async function commitStudentImport(
           )
         );
       const idByEmail = new Map(inserted.map(row => [row.email, row.id]));
-      await tx
-        .insert(studentProfiles)
-        .values(
-          chunk.map(row => ({
-            userId: idByEmail.get(row.data!.email)!,
-            collegeId: row.data!.collegeId,
-            department: row.data!.department,
-            phone: row.data!.phone,
-          }))
-        );
+      await tx.insert(studentProfiles).values(
+        chunk.map(row => ({
+          userId: idByEmail.get(row.data!.email)!,
+          collegeId: row.data!.collegeId,
+          department: row.data!.department,
+          phone: row.data!.phone,
+        }))
+      );
       const codes = chunk.map(row => ({ row, code: newActivationCode() }));
       await tx.insert(authCodes).values(
         codes.map(({ row, code }) => ({

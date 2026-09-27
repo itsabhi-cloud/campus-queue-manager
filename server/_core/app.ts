@@ -133,9 +133,7 @@ export function errorHandler(
     (error as { status?: number; type?: string }).type === "entity.too.large"
       ? 413
       : 500;
-  res
-    .status(status)
-    .json({
-      error: status === 413 ? "Request too large." : "Something went wrong.",
-    });
+  res.status(status).json({
+    error: status === 413 ? "Request too large." : "Something went wrong.",
+  });
 }

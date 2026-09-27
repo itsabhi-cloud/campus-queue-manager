@@ -343,15 +343,13 @@ export async function setStaffAssignments(
       .delete(staffCounterAssignments)
       .where(eq(staffCounterAssignments.staffUserId, staff.id));
     if (counterIds.length) {
-      await tx
-        .insert(staffCounterAssignments)
-        .values(
-          counterIds.map(counterId => ({
-            staffUserId: staff.id,
-            counterId,
-            assignedByUserId: actor.id,
-          }))
-        );
+      await tx.insert(staffCounterAssignments).values(
+        counterIds.map(counterId => ({
+          staffUserId: staff.id,
+          counterId,
+          assignedByUserId: actor.id,
+        }))
+      );
     }
     await audit(tx, {
       actorUserId: actor.id,

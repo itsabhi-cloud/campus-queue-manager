@@ -75,3 +75,14 @@ describe("rate limiter", () => {
     expect(limiter.consume("k", 1001)).toBe(0);
   });
 });
+
+describe("rate limiter inspection", () => {
+  it("reports a block without recording an attempt", () => {
+    const limiter = new RateLimiter(2, 1000);
+    expect(limiter.blockedFor("ip", 0)).toBe(0);
+    limiter.consume("ip", 0);
+    limiter.consume("ip", 1);
+    expect(limiter.blockedFor("ip", 2)).toBeGreaterThan(0);
+    expect(limiter.blockedFor("other", 2)).toBe(0);
+  });
+});

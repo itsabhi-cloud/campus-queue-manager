@@ -112,15 +112,13 @@ export async function reportCount(
     now.getTime() - lastMetric.capturedAt.getTime() >= METRIC_INTERVAL_MS ||
     lastMetric.trafficLevel !== level
   ) {
-    await db
-      .insert(cameraMetrics)
-      .values({
-        cameraStationId: station.id,
-        peopleCount: input.peopleCount,
-        rawDetections: input.rawDetections,
-        trafficLevel: level,
-        capturedAt: now,
-      });
+    await db.insert(cameraMetrics).values({
+      cameraStationId: station.id,
+      peopleCount: input.peopleCount,
+      rawDetections: input.rawDetections,
+      trafficLevel: level,
+      capturedAt: now,
+    });
   }
   broker.publish(
     { kind: "all" },
