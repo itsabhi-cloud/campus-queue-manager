@@ -206,7 +206,7 @@ export default function AdminImport() {
             Show only rows with problems
           </label>
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table stack">
               <thead>
                 <tr>
                   <th scope="col">Line</th>
@@ -222,11 +222,15 @@ export default function AdminImport() {
                     key={row.line}
                     className={row.status === "valid" ? "" : "row-problem"}
                   >
-                    <td>{row.line}</td>
-                    <td>{row.data?.name ?? row.raw.name}</td>
-                    <td>{row.data?.email ?? row.raw.email}</td>
-                    <td>{row.data?.collegeId ?? row.raw.collegeId}</td>
-                    <td>
+                    <td data-label="Line">{row.line}</td>
+                    <td data-label="Name">{row.data?.name ?? row.raw.name}</td>
+                    <td data-label="Email">
+                      {row.data?.email ?? row.raw.email}
+                    </td>
+                    <td data-label="College ID">
+                      {row.data?.collegeId ?? row.raw.collegeId}
+                    </td>
+                    <td data-label="Result">
                       <strong>{STATUS_TEXT[row.status]}</strong>
                       {row.errors.length > 0 && (
                         <small className="block">{row.errors.join("; ")}</small>

@@ -568,7 +568,7 @@ function CounterBoard({ counterId }: { counterId: number }) {
                     onClick={() => setDialog({ kind: "offline" })}
                     disabled={busy}
                   >
-                    <PowerOff size={14} aria-hidden /> Take offline
+                    <PowerOff size={14} aria-hidden /> Take offline or merge
                   </button>
                 )}
               </div>

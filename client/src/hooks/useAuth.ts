@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useLocation } from "wouter";
 import type { Role } from "@shared/domain";
+import { setAuthNotice } from "@/lib/authNotice";
 import { trpc } from "@/lib/trpc";
 
 export const HOME_FOR_ROLE: Record<Role, string> = {
@@ -23,6 +24,7 @@ export function useAuth() {
     try {
       await logoutMutation.mutateAsync();
     } finally {
+      setAuthNotice("signed-out");
       utils.auth.me.setData(undefined, null);
       utils.invalidate();
       navigate("/login");

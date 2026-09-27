@@ -431,3 +431,128 @@
   background: var(--board);
   color: var(--signal);
 }
+
+/* ---------------------------------------------------------- Ticket variants */
+.ticket.is-almost {
+  border-color: var(--violet);
+  box-shadow:
+    inset 0 4px 0 var(--violet),
+    var(--shadow-1);
+}
+.ticket.is-paused {
+  border-color: var(--amber-ink);
+  box-shadow:
+    inset 0 4px 0 var(--amber-ink),
+    var(--shadow-1);
+}
+.ticket.is-paused .ticket-message {
+  color: var(--amber-ink);
+}
+.ticket.is-offline {
+  border-color: var(--halt);
+  box-shadow:
+    inset 0 4px 0 var(--halt),
+    var(--shadow-1);
+}
+.ticket.is-offline .ticket-message {
+  color: var(--halt-ink);
+}
+.ticket.is-serving {
+  box-shadow:
+    inset 0 4px 0 var(--go),
+    var(--shadow-1);
+}
+.countdown.is-late {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--amber-ink);
+}
+
+/* Merge explained where it happened: what, why, what it means for you. */
+.ticket-banner {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-control);
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+  font-size: var(--text-sm);
+}
+.ticket-banner svg {
+  margin-top: 2px;
+}
+.ticket-banner strong {
+  color: var(--ink);
+}
+
+/* One quiet line describing the last change. Fades in once; never loops. */
+.ticket-change {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 var(--s-5) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-control);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  animation: change-in 400ms var(--ease);
+}
+.ticket-change.is-down {
+  background: var(--go-soft);
+  color: var(--go-ink);
+}
+.ticket-change.is-up {
+  background: var(--amber-soft);
+  color: var(--amber-ink);
+}
+.ticket-change.is-move {
+  background: var(--violet-soft);
+  color: var(--violet-strong);
+}
+.ticket-change.is-muted {
+  background: var(--fill);
+  color: var(--ink-2);
+  font-weight: 400;
+}
+.ticket.is-called .ticket-change {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--board);
+}
+@keyframes change-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* The "you're in" moment right after joining. */
+.joined-banner {
+  display: flex;
+  gap: var(--s-4);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-panel);
+  background: var(--board);
+  color: #fff;
+  animation: change-in 400ms var(--ease);
+}
+.joined-banner strong {
+  display: block;
+  font-size: var(--text-lg);
+}
+.joined-banner p {
+  color: var(--board-muted);
+  font-size: var(--text-sm);
+}
+.joined-banner .button {
+  margin-left: auto;
+}
+.group-kind {
+  font-size: var(--text-xs) !important;
+  font-weight: 700;
+  color: var(--violet-strong) !important;
+}

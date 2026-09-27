@@ -401,11 +401,15 @@ function StationRunner({
                 </dd>
               </div>
               <div>
-                <dt>Affects estimates</dt>
+                <dt>Effect on wait estimates</dt>
                 <dd>
-                  {station.cameraAssist
-                    ? "Can raise traffic level"
-                    : "No, information only"}
+                  {!station.cameraAssist
+                    ? "None, shown for information"
+                    : stale
+                      ? "None while the signal is stale"
+                      : lastReport && lastReport.level !== "NORMAL"
+                        ? `Raising ${station.groupName} to ${lastReport.level.toLowerCase()} traffic`
+                        : "None at normal crowding"}
                 </dd>
               </div>
               <div>

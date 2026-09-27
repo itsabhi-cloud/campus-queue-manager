@@ -45,14 +45,14 @@ export default function AdminQueues() {
             </div>
           </div>
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table stack">
               <thead>
                 <tr>
-                  <th scope="col">Queue · counter</th>
+                  <th scope="col">Queue and counter</th>
                   <th scope="col">Status</th>
                   <th scope="col">Waiting</th>
                   <th scope="col">Now serving</th>
-                  <th scope="col">New joiner wait</th>
+                  <th scope="col">Wait if joined now</th>
                   <th scope="col">Traffic</th>
                   <th scope="col">
                     <span className="sr-only">Actions</span>
@@ -67,17 +67,19 @@ export default function AdminQueues() {
                         {group.name} · <strong>{counter.name}</strong>{" "}
                         <small className="muted">({counter.tokenPrefix})</small>
                       </th>
-                      <td>
+                      <td data-label="Status">
                         <CounterBadge status={counter.status} />
                       </td>
-                      <td>{counter.waiting}</td>
-                      <td>{counter.nowServing.join(", ") || "—"}</td>
-                      <td>
+                      <td data-label="Waiting">{counter.waiting}</td>
+                      <td data-label="Now serving">
+                        {counter.nowServing.join(", ") || "None"}
+                      </td>
+                      <td data-label="Wait if joined now">
                         {counter.status === "OPEN"
                           ? approxMinutes(counter.estimatedWaitSeconds)
                           : "—"}
                       </td>
-                      <td>
+                      <td data-label="Traffic">
                         <TrafficBadge
                           level={group.traffic.effectiveLevel}
                           label=""

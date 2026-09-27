@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { takeAuthNotice } from "@/lib/authNotice";
 import { Link, useLocation, useSearch } from "wouter";
 import { LockKeyhole } from "lucide-react";
 import { BrandMark } from "@/components/AppShell";
@@ -18,6 +19,7 @@ export default function Login() {
   const [, navigate] = useLocation();
   const params = new URLSearchParams(useSearch());
   const next = safeNext(params.get("next"));
+  const [notice] = useState(takeAuthNotice);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const login = trpc.auth.login.useMutation({
@@ -50,8 +52,14 @@ export default function Login() {
             Use the account issued by your campus administration.
           </p>
         </div>
-        {next && !login.error && (
-          <p className="auth-note">Please sign in to continue.</p>
+        {!login.error && (notice || next) && (
+          <p className="auth-note" role="status">
+            {notice === "expired"
+              ? "Your session expired. Sign in again; your tokens are safe on the server."
+              : notice === "signed-out"
+                ? "You're signed out. Your tokens stay in their queues."
+                : "Sign in to continue."}
+          </p>
         )}
         {login.error && (
           <div className="form-error" role="alert">

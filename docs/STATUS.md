@@ -1,6 +1,6 @@
 # Verification status
 
-Last full verification: 2026-09-27, macOS, Node 24.15, MySQL 8.0.45, local only.
+Last full verification: 2026-09-28, macOS, Node 24.15, MySQL 8.0.45, local only.
 
 Legend — **Verified (auto)**: covered by `pnpm test` against a real MySQL test database.
 **Verified (manual)**: exercised by hand in a browser and/or via the HTTP API against the running
@@ -43,8 +43,8 @@ dev or production build. **Implemented, not verified**: code exists but was not 
 | Privacy: only aggregates stored, no person-to-token link | Verified (schema + test asserting stored columns) |
 | Audit logs | Verified (auto + manual) |
 | Security headers, CSP (no violations in production bundle), CSRF origin check | Verified (manual + auto) |
-| Responsive UI (desktop, 375 px mobile) | Verified (manual) for student home, token, staff console, admin pages checked |
-| Accessibility | Implemented: semantic landmarks, labels, focus-visible, skip link, status text not colour-only, larger minimum text. **No automated a11y audit or screen-reader test was run.** |
+| Responsive UI | Verified (manual) at 360, 390, 768, 1280 and 1440 px: student home, service detail, token detail, notifications, profile, staff console, admin overview, people, services, landing. No horizontal page scroll at 360 px |
+| Accessibility | Implemented and checked by hand: AA contrast for every text colour pair (computed), 13px minimum text, focus-visible, skip link, labelled fields with linked errors, icon + word for every status, polite live announcements of queue changes, accessible drawer (focus trap, Escape, scroll lock — verified), reduced-motion support. **No automated a11y audit or screen-reader session was run.** |
 | Browser notifications (Notification API) | Implemented, not verified (needs the user to grant permission) |
 
 ## Needs external setup
@@ -62,3 +62,11 @@ dev or production build. **Implemented, not verified**: code exists but was not 
   configured service time is used.
 - Rate limits and realtime fan-out are per-process.
 - No administrator MFA; no self-service password reset without an admin-issued code.
+
+## Frontend design pass (2026-09-28)
+
+Frontend-only changes (no backend, API, auth or realtime changes). Verified manually in the browser:
+the ticket variants (waiting, almost next, called, serving, merged, paused/offline copy), the change
+cue after a staff traffic change, the "You're in" banner after joining, notification categories,
+the admin *Recent operations* feed, and the accessible mobile drawer. The 12-step demo flow script
+still passes against the dev server after the redesign. See [design-system.md](design-system.md).

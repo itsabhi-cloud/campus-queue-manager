@@ -27,7 +27,14 @@ export default function StudentHome() {
     if (active.data) syncServerTime(active.data.serverTime);
   }, [active.data]);
   const firstName = user?.name.split(" ")[0] ?? "there";
-  const entries = active.data?.entries ?? [];
+  // Most urgent first: called, then being served, then fewest people ahead.
+  const urgency = { CALLED: 0, SERVING: 1, WAITING: 2 } as const;
+  const entries = [...(active.data?.entries ?? [])].sort(
+    (a, b) =>
+      urgency[a.status as keyof typeof urgency] -
+        urgency[b.status as keyof typeof urgency] ||
+      a.peopleAhead - b.peopleAhead
+  );
 
   return (
     <>

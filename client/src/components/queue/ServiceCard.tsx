@@ -53,7 +53,12 @@ export function ServiceCard({
           <>
             <span className="num">{waiting} waiting</span>
             <span>{waitText(estimates)}</span>
-            <TrafficBadge level={traffic} />
+            <TrafficBadge
+              level={traffic}
+              label={
+                service.kind === "ELEVATOR" ? "traffic estimate" : "traffic"
+              }
+            />
           </>
         )}
         {activeTokens.length > 0 && (

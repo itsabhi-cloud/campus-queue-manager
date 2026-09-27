@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { Link } from "wouter";
-import { ArrowLeft, SearchX } from "lucide-react";
+import { Link, useLocation, useSearch } from "wouter";
+import { ArrowLeft, CheckCircle2, SearchX } from "lucide-react";
 import { TokenTicket } from "@/components/queue/TokenTicket";
 import {
   EmptyState,
@@ -43,6 +43,8 @@ export default function TokenDetail({ id }: { id: string }) {
     if (active.data) syncServerTime(active.data.serverTime);
   }, [active.data]);
   const live = active.data?.entries.find(e => e.id === entryId);
+  const [, navigate] = useLocation();
+  const justJoined = new URLSearchParams(useSearch()).get("joined") === "1";
 
   if (entry.isLoading) return <LoadingBlock rows={3} />;
   if (entry.error && appCodeOf(entry.error) === "NOT_FOUND") {
@@ -75,6 +77,31 @@ export default function TokenDetail({ id }: { id: string }) {
       <Link href="/app" className="back-link">
         <ArrowLeft size={16} aria-hidden /> Your tokens
       </Link>
+      {justJoined && live && (
+        <div className="joined-banner" role="status">
+          <CheckCircle2 size={28} aria-hidden />
+          <div>
+            <strong>
+              You're in. Token {live.tokenNumber} is holding your place.
+            </strong>
+            <p>
+              {live.service.kind === "CAFETERIA"
+                ? "You've reserved your place, not an order. "
+                : ""}
+              You can leave the line now. We'll alert you when your turn is
+              close.
+            </p>
+          </div>
+          <button
+            className="button button-light button-small"
+            onClick={() =>
+              navigate(`/app/tokens/${entryId}`, { replace: true })
+            }
+          >
+            Got it
+          </button>
+        </div>
+      )}
       <div className="detail-layout">
         <div>
           {live ? (

@@ -8,7 +8,8 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { isAuthError } from "./lib/errors";
+import { setAuthNotice } from "./lib/authNotice";
+import { appCodeOf, isAuthError } from "./lib/errors";
 import { trpc } from "./lib/trpc";
 import "./styles/tokens.css";
 import "./styles/base.css";
@@ -22,6 +23,7 @@ function onApiError(error: unknown) {
   // A dead session anywhere means "go sign in again" — handled once, centrally.
   if (isAuthError(error) && !handlingExpiry) {
     handlingExpiry = true;
+    if (appCodeOf(error) === "SESSION_EXPIRED") setAuthNotice("expired");
     queryClient.setQueryData([["auth", "me"], { type: "query" }], null);
     void queryClient
       .invalidateQueries({ queryKey: [["auth", "me"]] })
