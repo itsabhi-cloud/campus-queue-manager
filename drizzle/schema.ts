@@ -37,7 +37,10 @@ import {
   TRAFFIC_LEVELS,
 } from "../shared/domain";
 
-const createdAt = () => timestamp({ fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`);
+const createdAt = () =>
+  timestamp({ fsp: 3 })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP(3)`);
 const updatedAt = () =>
   timestamp({ fsp: 3 })
     .notNull()
@@ -82,7 +85,10 @@ export const studentProfiles = mysqlTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  t => [uniqueIndex("student_profiles_college_id_unique").on(t.collegeId), index("student_profiles_department_idx").on(t.department)]
+  t => [
+    uniqueIndex("student_profiles_college_id_unique").on(t.collegeId),
+    index("student_profiles_department_idx").on(t.department),
+  ]
 );
 
 export const staffProfiles = mysqlTable(
@@ -133,10 +139,15 @@ export const authCodes = mysqlTable(
     purpose: mysqlEnum(AUTH_CODE_PURPOSES).notNull(),
     expiresAt: timestamp({ fsp: 3 }).notNull(),
     usedAt: timestamp({ fsp: 3 }),
-    createdByUserId: int().references((): AnyMySqlColumn => users.id, { onDelete: "set null" }),
+    createdByUserId: int().references((): AnyMySqlColumn => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: createdAt(),
   },
-  t => [uniqueIndex("auth_codes_hash_unique").on(t.codeHash), index("auth_codes_user_idx").on(t.userId)]
+  t => [
+    uniqueIndex("auth_codes_hash_unique").on(t.codeHash),
+    index("auth_codes_user_idx").on(t.userId),
+  ]
 );
 
 /** Server-side sessions. `id` is the HMAC-SHA256 of the random cookie token, never the token itself. */
@@ -148,12 +159,17 @@ export const sessions = mysqlTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     expiresAt: timestamp({ fsp: 3 }).notNull(),
-    lastSeenAt: timestamp({ fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    lastSeenAt: timestamp({ fsp: 3 })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP(3)`),
     userAgent: varchar({ length: 255 }),
     ipAddress: varchar({ length: 64 }),
     createdAt: createdAt(),
   },
-  t => [index("sessions_user_idx").on(t.userId), index("sessions_expires_idx").on(t.expiresAt)]
+  t => [
+    index("sessions_user_idx").on(t.userId),
+    index("sessions_expires_idx").on(t.expiresAt),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -200,7 +216,9 @@ export const queueGroups = mysqlTable(
     trafficDelaySeconds: int().notNull().default(0),
     trafficReason: varchar({ length: 200 }),
     trafficUpdatedAt: timestamp({ fsp: 3 }),
-    trafficUpdatedByUserId: int().references(() => users.id, { onDelete: "set null" }),
+    trafficUpdatedByUserId: int().references(() => users.id, {
+      onDelete: "set null",
+    }),
     /** When true, fresh camera congestion can raise (never lower) the effective traffic level. */
     cameraAssist: boolean().notNull().default(false),
     cameraModerateAt: int().notNull().default(6),
@@ -212,10 +230,22 @@ export const queueGroups = mysqlTable(
   },
   t => [
     uniqueIndex("queue_groups_service_slug_unique").on(t.serviceId, t.slug),
-    check("queue_groups_service_seconds_positive", sql`${t.averageServiceSeconds} between 10 and 7200`),
-    check("queue_groups_capacity_range", sql`${t.serveCapacity} between 1 and 50`),
-    check("queue_groups_max_waiting_positive", sql`${t.maxWaiting} between 1 and 5000`),
-    check("queue_groups_delay_range", sql`${t.trafficDelaySeconds} between 0 and 7200`),
+    check(
+      "queue_groups_service_seconds_positive",
+      sql`${t.averageServiceSeconds} between 10 and 7200`
+    ),
+    check(
+      "queue_groups_capacity_range",
+      sql`${t.serveCapacity} between 1 and 50`
+    ),
+    check(
+      "queue_groups_max_waiting_positive",
+      sql`${t.maxWaiting} between 1 and 5000`
+    ),
+    check(
+      "queue_groups_delay_range",
+      sql`${t.trafficDelaySeconds} between 0 and 7200`
+    ),
   ]
 );
 
@@ -232,7 +262,9 @@ export const counters = mysqlTable(
     statusReason: varchar({ length: 200 }),
     statusUpdatedAt: timestamp({ fsp: 3 }),
     /** Set while this counter's queue has been merged into another counter. */
-    mergedIntoCounterId: int().references((): AnyMySqlColumn => counters.id, { onDelete: "set null" }),
+    mergedIntoCounterId: int().references((): AnyMySqlColumn => counters.id, {
+      onDelete: "set null",
+    }),
     /** Daily token sequence, allocated under a row lock. */
     nextSequence: int().notNull().default(1),
     sequenceDate: date({ mode: "string" }),
@@ -260,7 +292,9 @@ export const staffCounterAssignments = mysqlTable(
     counterId: int()
       .notNull()
       .references(() => counters.id, { onDelete: "cascade" }),
-    assignedByUserId: int().references(() => users.id, { onDelete: "set null" }),
+    assignedByUserId: int().references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: createdAt(),
   },
   t => [
@@ -302,9 +336,13 @@ export const queueEntries = mysqlTable(
     isPriority: boolean().notNull().default(false),
     priorityReason: varchar({ length: 200 }),
     priorityAt: timestamp({ fsp: 3 }),
-    priorityByUserId: int().references(() => users.id, { onDelete: "set null" }),
+    priorityByUserId: int().references(() => users.id, {
+      onDelete: "set null",
+    }),
     estimatedWaitSeconds: int().notNull().default(0),
-    estimateUpdatedAt: timestamp({ fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    estimateUpdatedAt: timestamp({ fsp: 3 })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP(3)`),
     almostNextNotifiedAt: timestamp({ fsp: 3 }),
     joinedAt: createdAt(),
     calledAt: timestamp({ fsp: 3 }),
@@ -325,9 +363,21 @@ export const queueEntries = mysqlTable(
     ),
   },
   t => [
-    uniqueIndex("queue_entries_sequence_unique").on(t.originalCounterId, t.queueDate, t.sequenceNumber),
-    uniqueIndex("queue_entries_one_active_per_group").on(t.userId, t.activeGroupKey),
-    index("queue_entries_line_idx").on(t.counterId, t.status, t.isPriority, t.orderKey),
+    uniqueIndex("queue_entries_sequence_unique").on(
+      t.originalCounterId,
+      t.queueDate,
+      t.sequenceNumber
+    ),
+    uniqueIndex("queue_entries_one_active_per_group").on(
+      t.userId,
+      t.activeGroupKey
+    ),
+    index("queue_entries_line_idx").on(
+      t.counterId,
+      t.status,
+      t.isPriority,
+      t.orderKey
+    ),
     index("queue_entries_user_idx").on(t.userId, t.joinedAt),
     index("queue_entries_group_status_idx").on(t.queueGroupId, t.status),
     index("queue_entries_joined_idx").on(t.joinedAt),
@@ -339,9 +389,13 @@ export const queueEvents = mysqlTable(
   {
     id: int().autoincrement().primaryKey(),
     type: mysqlEnum(QUEUE_EVENT_TYPES).notNull(),
-    queueEntryId: int().references(() => queueEntries.id, { onDelete: "cascade" }),
+    queueEntryId: int().references(() => queueEntries.id, {
+      onDelete: "cascade",
+    }),
     counterId: int().references(() => counters.id, { onDelete: "cascade" }),
-    queueGroupId: int().references(() => queueGroups.id, { onDelete: "cascade" }),
+    queueGroupId: int().references(() => queueGroups.id, {
+      onDelete: "cascade",
+    }),
     actorUserId: int().references(() => users.id, { onDelete: "set null" }),
     fromStatus: varchar({ length: 16 }),
     toStatus: varchar({ length: 16 }),
@@ -365,12 +419,17 @@ export const notifications = mysqlTable(
     type: mysqlEnum(NOTIFICATION_TYPES).notNull(),
     title: varchar({ length: 120 }).notNull(),
     message: varchar({ length: 500 }).notNull(),
-    queueEntryId: int().references(() => queueEntries.id, { onDelete: "set null" }),
+    queueEntryId: int().references(() => queueEntries.id, {
+      onDelete: "set null",
+    }),
     tokenNumber: varchar({ length: 12 }),
     readAt: timestamp({ fsp: 3 }),
     createdAt: createdAt(),
   },
-  t => [index("notifications_user_idx").on(t.userId, t.createdAt), index("notifications_unread_idx").on(t.userId, t.readAt)]
+  t => [
+    index("notifications_user_idx").on(t.userId, t.createdAt),
+    index("notifications_unread_idx").on(t.userId, t.readAt),
+  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -385,7 +444,9 @@ export const cameraStations = mysqlTable(
     queueGroupId: int()
       .notNull()
       .references(() => queueGroups.id, { onDelete: "restrict" }),
-    roi: json().$type<{ x: number; y: number; width: number; height: number }>().notNull(),
+    roi: json()
+      .$type<{ x: number; y: number; width: number; height: number }>()
+      .notNull(),
     confidenceThreshold: tinyint().notNull().default(55),
     isActive: boolean().notNull().default(true),
     lastReportedAt: timestamp({ fsp: 3 }),
@@ -410,7 +471,10 @@ export const cameraMetrics = mysqlTable(
   },
   t => [
     index("camera_metrics_station_idx").on(t.cameraStationId, t.capturedAt),
-    check("camera_metrics_non_negative", sql`${t.peopleCount} >= 0 and ${t.rawDetections} >= 0`),
+    check(
+      "camera_metrics_non_negative",
+      sql`${t.peopleCount} >= 0 and ${t.rawDetections} >= 0`
+    ),
   ]
 );
 

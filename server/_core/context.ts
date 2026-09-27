@@ -1,5 +1,9 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import { readSessionToken, resolveSession, type SessionUser } from "../auth/sessions";
+import {
+  readSessionToken,
+  resolveSession,
+  type SessionUser,
+} from "../auth/sessions";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -11,7 +15,10 @@ export type TrpcContext = {
   ip: string;
 };
 
-export async function createContext({ req, res }: CreateExpressContextOptions): Promise<TrpcContext> {
+export async function createContext({
+  req,
+  res,
+}: CreateExpressContextOptions): Promise<TrpcContext> {
   const token = readSessionToken(req);
   const session = await resolveSession(token);
   return {

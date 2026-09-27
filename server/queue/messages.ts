@@ -4,11 +4,22 @@ import type { ServiceKind } from "../../shared/domain";
 
 export function aheadText(peopleAhead: number, unit = "people") {
   if (peopleAhead <= 0) return "You're next";
-  const noun = peopleAhead === 1 ? (unit === "people" ? "person" : unit.replace(/s$/, "")) : unit;
+  const noun =
+    peopleAhead === 1
+      ? unit === "people"
+        ? "person"
+        : unit.replace(/s$/, "")
+      : unit;
   return `${peopleAhead} ${noun} ahead of you`;
 }
 
-export function almostNextMessage(kind: ServiceKind, token: string, counterName: string, peopleAhead: number, unit: string) {
+export function almostNextMessage(
+  kind: ServiceKind,
+  token: string,
+  counterName: string,
+  peopleAhead: number,
+  unit: string
+) {
   const ahead = aheadText(peopleAhead, unit);
   switch (kind) {
     case "CAFETERIA":
@@ -22,7 +33,11 @@ export function almostNextMessage(kind: ServiceKind, token: string, counterName:
   }
 }
 
-export function calledMessage(kind: ServiceKind, token: string, counterName: string) {
+export function calledMessage(
+  kind: ServiceKind,
+  token: string,
+  counterName: string
+) {
   switch (kind) {
     case "CAFETERIA":
       return `Token ${token}: it's your turn at ${counterName}. Please place your order now.`;
@@ -33,7 +48,12 @@ export function calledMessage(kind: ServiceKind, token: string, counterName: str
   }
 }
 
-export function counterStatusMessage(status: "PAUSED" | "OFFLINE" | "OPEN", counterName: string, token: string, reason?: string | null) {
+export function counterStatusMessage(
+  status: "PAUSED" | "OFFLINE" | "OPEN",
+  counterName: string,
+  token: string,
+  reason?: string | null
+) {
   const because = reason ? ` (${reason})` : "";
   switch (status) {
     case "PAUSED":

@@ -6,7 +6,9 @@ import type { QueueStatus } from "../../shared/domain";
  *
  * CALLED → WAITING is system-only: it re-queues a called token when its counter is merged away.
  */
-export const TRANSITIONS: Readonly<Record<QueueStatus, readonly QueueStatus[]>> = {
+export const TRANSITIONS: Readonly<
+  Record<QueueStatus, readonly QueueStatus[]>
+> = {
   WAITING: ["CALLED", "SKIPPED", "CANCELLED"],
   CALLED: ["SERVING", "SKIPPED", "CANCELLED", "WAITING"],
   SERVING: ["COMPLETED", "CANCELLED"],

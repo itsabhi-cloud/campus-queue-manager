@@ -8,7 +8,13 @@ import {
   trafficFromCount,
 } from "../../server/queue/estimation";
 
-const base = { serviceSeconds: 120, serveCapacity: 1, traffic: "NORMAL" as const, delaySeconds: 0, inProgressElapsedSeconds: null };
+const base = {
+  serviceSeconds: 120,
+  serveCapacity: 1,
+  traffic: "NORMAL" as const,
+  delaySeconds: 0,
+  inProgressElapsedSeconds: null,
+};
 
 describe("estimateWait", () => {
   it("is zero for the first person when the counter is idle", () => {
@@ -20,15 +26,28 @@ describe("estimateWait", () => {
   });
 
   it("adds the remaining time of the token currently being served, never below 15% of a cycle", () => {
-    expect(estimateWait({ ...base, peopleAhead: 1, inProgressElapsedSeconds: 30 }).seconds).toBe(120 + 90);
-    expect(estimateWait({ ...base, peopleAhead: 0, inProgressElapsedSeconds: 600 }).inProgressSeconds).toBe(18);
+    expect(
+      estimateWait({ ...base, peopleAhead: 1, inProgressElapsedSeconds: 30 })
+        .seconds
+    ).toBe(120 + 90);
+    expect(
+      estimateWait({ ...base, peopleAhead: 0, inProgressElapsedSeconds: 600 })
+        .inProgressSeconds
+    ).toBe(18);
   });
 
   it("applies traffic multipliers and a one-off staff delay", () => {
-    const heavy = estimateWait({ ...base, peopleAhead: 2, traffic: "HEAVY", delaySeconds: 300 });
+    const heavy = estimateWait({
+      ...base,
+      peopleAhead: 2,
+      traffic: "HEAVY",
+      delaySeconds: 300,
+    });
     expect(heavy.cycleSeconds).toBe(180);
     expect(heavy.seconds).toBe(2 * 180 + 300);
-    expect(estimateWait({ ...base, peopleAhead: 4, traffic: "MODERATE" }).seconds).toBe(600);
+    expect(
+      estimateWait({ ...base, peopleAhead: 4, traffic: "MODERATE" }).seconds
+    ).toBe(600);
   });
 
   it("serves batches for multi-capacity queues such as lifts", () => {

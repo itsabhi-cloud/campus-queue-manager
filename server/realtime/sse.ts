@@ -26,7 +26,8 @@ export async function realtimeHandler(req: Request, res: Response) {
     "X-Accel-Buffering": "no",
   });
   res.write("retry: 3000\n\n");
-  const send = (event: RealtimeEvent) => res.write(`data: ${JSON.stringify(event)}\n\n`);
+  const send = (event: RealtimeEvent) =>
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
   send({ type: "hello", serverTime: Date.now() });
   open.add(res);
 

@@ -12,7 +12,11 @@ export function campusDate(at = new Date()): string {
   return dateFormatter.format(at);
 }
 
-const hourFormatter = new Intl.DateTimeFormat("en-GB", { timeZone: ENV.CAMPUS_TIMEZONE, hour: "2-digit", hour12: false });
+const hourFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: ENV.CAMPUS_TIMEZONE,
+  hour: "2-digit",
+  hour12: false,
+});
 
 export function campusHour(at: Date): number {
   return Number(hourFormatter.format(at)) % 24;
@@ -24,7 +28,10 @@ export function startOfCampusDay(at = new Date()): Date {
   const guess = new Date(`${day}T00:00:00Z`);
   // Offset between UTC midnight and campus midnight on that day.
   const hoursAtGuess = campusHour(guess);
-  const minutesFormatter = new Intl.DateTimeFormat("en-GB", { timeZone: ENV.CAMPUS_TIMEZONE, minute: "2-digit" });
+  const minutesFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: ENV.CAMPUS_TIMEZONE,
+    minute: "2-digit",
+  });
   const minutesAtGuess = Number(minutesFormatter.format(guess));
   let offsetMinutes = hoursAtGuess * 60 + minutesAtGuess;
   if (offsetMinutes > 12 * 60) offsetMinutes -= 24 * 60;

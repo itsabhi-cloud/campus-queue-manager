@@ -21,7 +21,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
 };
 
 /** Informational notifications can be muted; transactional ones (called, cancelled…) cannot. */
-const PREFERENCE_FOR: Partial<Record<NotificationType, keyof Omit<Preferences, "almostNextThreshold">>> = {
+const PREFERENCE_FOR: Partial<
+  Record<NotificationType, keyof Omit<Preferences, "almostNextThreshold">>
+> = {
   ALMOST_NEXT: "almostNext",
   POSITION_CHANGED: "positionChanges",
   PRIORITY_ADJUSTMENT: "positionChanges",
@@ -32,11 +34,17 @@ const PREFERENCE_FOR: Partial<Record<NotificationType, keyof Omit<Preferences, "
   COUNTER_OFFLINE: "counterStatus",
 };
 
-export async function loadPreferences(executor: Executor, userIds: number[]): Promise<Map<number, Preferences>> {
+export async function loadPreferences(
+  executor: Executor,
+  userIds: number[]
+): Promise<Map<number, Preferences>> {
   const map = new Map<number, Preferences>();
   const unique = [...new Set(userIds)];
   if (unique.length === 0) return map;
-  const rows = await executor.select().from(notificationPreferences).where(inArray(notificationPreferences.userId, unique));
+  const rows = await executor
+    .select()
+    .from(notificationPreferences)
+    .where(inArray(notificationPreferences.userId, unique));
   unique.forEach(id => map.set(id, DEFAULT_PREFERENCES));
   rows.forEach(row =>
     map.set(row.userId, {
@@ -60,9 +68,19 @@ export type NotificationInput = {
 };
 
 /** Creates notifications (respecting preferences) and schedules realtime delivery after commit. */
-export async function notify(executor: Executor, fx: Effects, inputs: NotificationInput[], prefs?: Map<number, Preferences>) {
+export async function notify(
+  executor: Executor,
+  fx: Effects,
+  inputs: NotificationInput[],
+  prefs?: Map<number, Preferences>
+) {
   if (inputs.length === 0) return;
-  const preferences = prefs ?? (await loadPreferences(executor, inputs.map(input => input.userId)));
+  const preferences =
+    prefs ??
+    (await loadPreferences(
+      executor,
+      inputs.map(input => input.userId)
+    ));
   for (const input of inputs) {
     const key = PREFERENCE_FOR[input.type];
     const pref = preferences.get(input.userId) ?? DEFAULT_PREFERENCES;

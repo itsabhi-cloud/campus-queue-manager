@@ -12,7 +12,8 @@ export type Orderable = {
 export function compareWaiting(a: Orderable, b: Orderable): number {
   if (a.isPriority !== b.isPriority) return a.isPriority ? -1 : 1;
   if (a.isPriority && b.isPriority) {
-    const diff = (a.priorityAt?.getTime() ?? 0) - (b.priorityAt?.getTime() ?? 0);
+    const diff =
+      (a.priorityAt?.getTime() ?? 0) - (b.priorityAt?.getTime() ?? 0);
     if (diff !== 0) return diff;
   }
   return a.orderKey - b.orderKey || a.id - b.id;
@@ -23,8 +24,12 @@ export function orderWaiting<T extends Orderable>(entries: T[]): T[] {
 }
 
 /** 1-based positions keyed by entry id. */
-export function positionsOf<T extends Orderable>(entries: T[]): Map<number, number> {
-  return new Map(orderWaiting(entries).map((entry, index) => [entry.id, index + 1]));
+export function positionsOf<T extends Orderable>(
+  entries: T[]
+): Map<number, number> {
+  return new Map(
+    orderWaiting(entries).map((entry, index) => [entry.id, index + 1])
+  );
 }
 
 /**
@@ -34,14 +39,20 @@ export function positionsOf<T extends Orderable>(entries: T[]): Map<number, numb
  * - APPEND:    the receiving line first, then the merged line
  * Priority entries are not part of this ordering; they always sort first.
  */
-export function mergeLines<T extends Orderable>(target: T[], source: T[], strategy: MergeStrategy): T[] {
+export function mergeLines<T extends Orderable>(
+  target: T[],
+  source: T[],
+  strategy: MergeStrategy
+): T[] {
   const t = orderWaiting(target);
   const s = orderWaiting(source);
   switch (strategy) {
     case "APPEND":
       return [...t, ...s];
     case "JOIN_TIME":
-      return [...t, ...s].sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime() || a.id - b.id);
+      return [...t, ...s].sort(
+        (a, b) => a.joinedAt.getTime() - b.joinedAt.getTime() || a.id - b.id
+      );
     case "ALTERNATE": {
       const out: T[] = [];
       for (let i = 0; i < Math.max(t.length, s.length); i++) {

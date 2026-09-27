@@ -14,7 +14,11 @@ export default defineConfig({
   test: {
     environment: "node",
     env: { NODE_ENV: "test" },
-    include: ["server/**/*.test.ts", "client/src/**/*.test.ts", "tests/**/*.test.ts"],
+    include: [
+      "server/**/*.test.ts",
+      "client/src/**/*.test.ts",
+      "tests/**/*.test.ts",
+    ],
     globalSetup: ["tests/globalSetup.ts"],
     // Integration tests share one MySQL test database, so files run one at a time.
     fileParallelism: false,

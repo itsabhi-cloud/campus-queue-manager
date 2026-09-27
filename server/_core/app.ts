@@ -1,4 +1,8 @@
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { createContext } from "./context";
 import { ENV, isProduction } from "./env";
@@ -15,9 +19,15 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Frame-Options", "DENY");
   // The camera is only used by the camera station page on this origin.
-  res.setHeader("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(self), microphone=(), geolocation=()"
+  );
   if (isProduction) {
-    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=15552000; includeSubDomains"
+    );
     res.setHeader(
       "Content-Security-Policy",
       [
@@ -44,7 +54,8 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
  * our own origin. Browsers always send Origin on cross-site POSTs.
  */
 function sameOriginWrites(req: Request, res: Response, next: NextFunction) {
-  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS")
+    return next();
   const origin = req.headers.origin;
   if (!origin) return next(); // non-browser clients (curl, tests) cannot carry a victim's cookie cross-site
   const allowed = new Set<string>();
@@ -61,7 +72,13 @@ function sameOriginWrites(req: Request, res: Response, next: NextFunction) {
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
-  if (ENV.TRUST_PROXY) app.set("trust proxy", Number.isNaN(Number(ENV.TRUST_PROXY)) ? ENV.TRUST_PROXY : Number(ENV.TRUST_PROXY));
+  if (ENV.TRUST_PROXY)
+    app.set(
+      "trust proxy",
+      Number.isNaN(Number(ENV.TRUST_PROXY))
+        ? ENV.TRUST_PROXY
+        : Number(ENV.TRUST_PROXY)
+    );
   app.use(securityHeaders);
 
   app.get("/api/health", async (_req, res) => {
@@ -89,7 +106,11 @@ export function createApp() {
       router: appRouter,
       createContext,
       onError: ({ error, path }) => {
-        if (error.code === "INTERNAL_SERVER_ERROR") logger.error("tRPC internal error", { path, error: error.cause ?? error });
+        if (error.code === "INTERNAL_SERVER_ERROR")
+          logger.error("tRPC internal error", {
+            path,
+            error: error.cause ?? error,
+          });
       },
     })
   );
@@ -100,9 +121,21 @@ export function createApp() {
   return app;
 }
 
-export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(
+  error: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+) {
   logger.error("Unhandled HTTP error", { error });
   if (res.headersSent) return;
-  const status = (error as { status?: number; type?: string }).type === "entity.too.large" ? 413 : 500;
-  res.status(status).json({ error: status === 413 ? "Request too large." : "Something went wrong." });
+  const status =
+    (error as { status?: number; type?: string }).type === "entity.too.large"
+      ? 413
+      : 500;
+  res
+    .status(status)
+    .json({
+      error: status === 413 ? "Request too large." : "Something went wrong.",
+    });
 }

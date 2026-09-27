@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, passwordSchema, verifyPassword } from "../../server/auth/password";
-import { digest, newActivationCode, normalizeActivationCode, newSessionToken } from "../../server/auth/tokens";
+import {
+  hashPassword,
+  passwordSchema,
+  verifyPassword,
+} from "../../server/auth/password";
+import {
+  digest,
+  newActivationCode,
+  normalizeActivationCode,
+  newSessionToken,
+} from "../../server/auth/tokens";
 import { csvCell, parseCsv, toCsv } from "../../server/lib/csv";
 import { RateLimiter } from "../../server/_core/rateLimit";
 
@@ -13,7 +22,9 @@ describe("password hashing", () => {
     expect(await verifyPassword("anything", null)).toBe(false);
   });
   it("salts every hash", async () => {
-    expect(await hashPassword("Same-password-1")).not.toBe(await hashPassword("Same-password-1"));
+    expect(await hashPassword("Same-password-1")).not.toBe(
+      await hashPassword("Same-password-1")
+    );
   });
   it("enforces the password policy", () => {
     expect(passwordSchema.safeParse("short1").success).toBe(false);
@@ -32,14 +43,18 @@ describe("tokens", () => {
   it("normalises activation codes typed by humans", () => {
     const code = newActivationCode();
     expect(code).toMatch(/^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/);
-    expect(normalizeActivationCode(code.toLowerCase().replace(/-/g, " "))).toBe(code);
+    expect(normalizeActivationCode(code.toLowerCase().replace(/-/g, " "))).toBe(
+      code
+    );
     expect(normalizeActivationCode("abcd-efgh-ij0o")).toBe("ABCD-EFGH-1J00");
   });
 });
 
 describe("csv", () => {
   it("parses quotes, escaped quotes, CRLF and BOM", () => {
-    expect(parseCsv('﻿name,email\r\n"Rao, Anu","a@x.edu"\r\n"Say ""hi""",b@x.edu\n')).toEqual([
+    expect(
+      parseCsv('﻿name,email\r\n"Rao, Anu","a@x.edu"\r\n"Say ""hi""",b@x.edu\n')
+    ).toEqual([
       ["name", "email"],
       ["Rao, Anu", "a@x.edu"],
       ['Say "hi"', "b@x.edu"],

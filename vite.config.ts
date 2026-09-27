@@ -22,8 +22,12 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ["react", "react-dom"],
-          data: ["@tanstack/react-query", "@trpc/client", "@trpc/react-query", "superjson"],
-          charts: ["recharts"],
+          data: [
+            "@tanstack/react-query",
+            "@trpc/client",
+            "@trpc/react-query",
+            "superjson",
+          ],
         },
       },
     },

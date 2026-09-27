@@ -21,6 +21,12 @@ export function newActivationCode(): string {
 }
 
 export function normalizeActivationCode(input: string): string {
-  const cleaned = input.toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
-  return cleaned.length === 12 ? `${cleaned.slice(0, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8)}` : cleaned;
+  const cleaned = input
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, "")
+    .replace(/O/g, "0")
+    .replace(/[IL]/g, "1");
+  return cleaned.length === 12
+    ? `${cleaned.slice(0, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8)}`
+    : cleaned;
 }

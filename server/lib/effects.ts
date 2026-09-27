@@ -9,11 +9,16 @@ export class Effects {
   private readonly counterIds = new Set<number>();
   private readonly groupIds = new Set<number>();
   private readonly entryIdsByUser = new Map<number, Set<number>>();
-  private readonly userEvents: Array<{ userId: number; event: RealtimeEvent }> = [];
+  private readonly userEvents: Array<{ userId: number; event: RealtimeEvent }> =
+    [];
   private readonly broadcast: RealtimeEvent[] = [];
   private reason: QueueEventType | "CONFIG" = "CONFIG";
 
-  queueChanged(counterIds: number[], groupIds: number[], reason: QueueEventType | "CONFIG") {
+  queueChanged(
+    counterIds: number[],
+    groupIds: number[],
+    reason: QueueEventType | "CONFIG"
+  ) {
     counterIds.forEach(id => this.counterIds.add(id));
     groupIds.forEach(id => this.groupIds.add(id));
     this.reason = reason;
@@ -41,13 +46,23 @@ export class Effects {
     if (this.counterIds.size || this.groupIds.size) {
       broker.publish(
         { kind: "all" },
-        { type: "queue.changed", counterIds: [...this.counterIds], queueGroupIds: [...this.groupIds], reason: this.reason }
+        {
+          type: "queue.changed",
+          counterIds: [...this.counterIds],
+          queueGroupIds: [...this.groupIds],
+          reason: this.reason,
+        }
       );
     }
     this.entryIdsByUser.forEach((ids, userId) => {
-      broker.publish({ kind: "user", userId }, { type: "entry.changed", entryIds: [...ids] });
+      broker.publish(
+        { kind: "user", userId },
+        { type: "entry.changed", entryIds: [...ids] }
+      );
     });
-    this.userEvents.forEach(({ userId, event }) => broker.publish({ kind: "user", userId }, event));
+    this.userEvents.forEach(({ userId, event }) =>
+      broker.publish({ kind: "user", userId }, event)
+    );
     this.broadcast.forEach(event => broker.publish({ kind: "all" }, event));
   }
 }

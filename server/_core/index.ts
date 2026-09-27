@@ -11,7 +11,9 @@ import { serveStatic, setupVite } from "./vite";
 async function start() {
   const database = await pingDatabase();
   if (!database.ok) {
-    logger.error("Cannot reach the database. Check DATABASE_URL and run `pnpm db:migrate`.");
+    logger.error(
+      "Cannot reach the database. Check DATABASE_URL and run `pnpm db:migrate`."
+    );
     process.exit(1);
   }
 
@@ -23,14 +25,21 @@ async function start() {
 
   // Keep estimates honest when service runs long, and clear out expired sessions.
   const recalcTimer = setInterval(() => {
-    recalculateGroups(null).catch(error => logger.warn("Periodic recalculation failed", { error }));
+    recalculateGroups(null).catch(error =>
+      logger.warn("Periodic recalculation failed", { error })
+    );
   }, 60_000);
   const purgeTimer = setInterval(() => {
-    purgeExpiredSessions().catch(error => logger.warn("Session purge failed", { error }));
+    purgeExpiredSessions().catch(error =>
+      logger.warn("Session purge failed", { error })
+    );
   }, 3_600_000);
 
   server.listen(ENV.PORT, () => {
-    logger.info("QueueSense listening", { url: `http://localhost:${ENV.PORT}/`, env: ENV.NODE_ENV });
+    logger.info("QueueSense listening", {
+      url: `http://localhost:${ENV.PORT}/`,
+      env: ENV.NODE_ENV,
+    });
   });
   server.on("error", error => {
     logger.error("HTTP server error", { error });

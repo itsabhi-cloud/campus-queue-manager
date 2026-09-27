@@ -1,40 +1,51 @@
-import { trpc } from "@/lib/trpc";
-import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { startLogin } from "./const";
+import { isAuthError } from "./lib/errors";
+import { trpc } from "./lib/trpc";
 import "./index.css";
+import "./styles/app.css";
 
-const queryClient = new QueryClient();
-
-const redirectToLoginIfUnauthorized = (error: unknown) => {
-  if (!(error instanceof TRPCClientError)) return;
-  if (typeof window === "undefined") return;
-
-  const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
-
-  if (!isUnauthorized) return;
-
-  startLogin();
-};
-
-queryClient.getQueryCache().subscribe(event => {
-  if (event.type === "updated" && event.action.type === "error") {
-    const error = event.query.state.error;
-    redirectToLoginIfUnauthorized(error);
-    console.error("[API Query Error]", error);
+let handlingExpiry = false;
+function onApiError(error: unknown) {
+  // A dead session anywhere means "go sign in again" — handled once, centrally.
+  if (isAuthError(error) && !handlingExpiry) {
+    handlingExpiry = true;
+    queryClient.setQueryData([["auth", "me"], { type: "query" }], null);
+    void queryClient
+      .invalidateQueries({ queryKey: [["auth", "me"]] })
+      .finally(() => {
+        handlingExpiry = false;
+      });
   }
-});
+}
 
-queryClient.getMutationCache().subscribe(event => {
-  if (event.type === "updated" && event.action.type === "error") {
-    const error = event.mutation.state.error;
-    redirectToLoginIfUnauthorized(error);
-    console.error("[API Mutation Error]", error);
-  }
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: onApiError }),
+  mutationCache: new MutationCache({ onError: onApiError }),
+  defaultOptions: {
+    queries: {
+      staleTime: 10_000,
+      refetchOnWindowFocus: true,
+      retry: (failureCount, error) => {
+        // Only retry transport failures; 4xx answers are final.
+        if (
+          error instanceof TRPCClientError &&
+          error.data?.httpStatus &&
+          error.data.httpStatus < 500
+        )
+          return false;
+        return failureCount < 2;
+      },
+    },
+  },
 });
 
 const trpcClient = trpc.createClient({
@@ -42,32 +53,11 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
-      headers() {
-        // Preview auto-login fallback: when the browser blocks iframe cookies
-        // (Safari ITP / private browsing / WebView), the runtime mirrors the
-        // session into sessionStorage so we can forward it as a Bearer token.
-        // The regular OAuth cookie flow keeps working and takes priority server-side.
-        try {
-          const raw = sessionStorage.getItem("manus-cookie");
-          if (raw) {
-            const prefix = `${COOKIE_NAME}=`;
-            const pair = raw.split(";").find(s => s.trim().startsWith(prefix));
-            const token = pair?.trim().slice(prefix.length);
-            if (token) {
-              return { Authorization: `Bearer ${token}` };
-            }
-          }
-        } catch {
-          // sessionStorage unavailable
-        }
-        return {};
-      },
-      fetch(input, init) {
-        return globalThis.fetch(input, {
+      fetch: (input, init) =>
+        globalThis.fetch(input, {
           ...(init ?? {}),
-          credentials: "include",
-        });
-      },
+          credentials: "same-origin",
+        }),
     }),
   ],
 });
