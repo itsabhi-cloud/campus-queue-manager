@@ -8,7 +8,7 @@ Full per-feature results are in [final-test-matrix.md](final-test-matrix.md).
 
 | Area | Status |
 | --- | --- |
-| Build, types, tests | **Verified**: `tsc` clean; 111/111 tests (13 files; updated in [final-verification-report.md](final-verification-report.md)) against a real MySQL test DB; production build succeeds |
+| Build, types, tests | **Verified**: `tsc` clean; 114/114 tests (14 files; updated in [final-verification-report.md](final-verification-report.md)) against a real MySQL test DB; production build succeeds |
 | Database and migrations | **Verified**: clean database created by the bundled migrator (19 tables, 31 FKs, 11 unique, 6 CHECK); idempotent; 0 users |
 | Authentication and sessions | **Verified**: automated tests plus manual keyboard sign-in; production cookie flags inspected |
 | RBAC and object-level authorization | **Verified**: 26 privileged endpoints × student/staff/anonymous matrix; nothing changes on rejection |

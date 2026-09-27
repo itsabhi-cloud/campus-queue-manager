@@ -94,3 +94,13 @@ export function unitNoun(unit: string, count: number) {
   if (count === 1) return unit === "people" ? "person" : unit.replace(/s$/, "");
   return unit;
 }
+
+/** The best wait across a service's queues, worded so it never contradicts "N waiting". */
+export function serviceWaitText(estimates: number[], waiting: number): string {
+  if (estimates.length === 0) return "No estimate";
+  const best = Math.min(...estimates);
+  const prefix = estimates.length > 1 ? "Shortest wait " : "Wait ";
+  if (best >= 60)
+    return `${prefix}about ${approxMinutes(best).replace("~", "")}`;
+  return waiting === 0 ? "No wait right now" : `${prefix}under 1 min`;
+}

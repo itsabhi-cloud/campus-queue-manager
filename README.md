@@ -57,10 +57,13 @@ one configurable queue engine (no per-service code paths).
 ## Demo script (5–7 minutes)
 
 **Before the demo** (not during it): run `pnpm db:reset:dev`. It rebuilds the demo data and **signs
-everyone out**. Start `pnpm dev` and use two browsers (or one normal and one private window),
-because accounts in the same browser share a session. Development logins are listed at the top of
-`scripts/seed-dev.ts`. `pnpm demo:smoke` runs the same flow automatically as a pre-flight check
-(then reseed again).
+everyone out**. Start `pnpm dev`. Accounts in the same browser share a session, so give each role
+its own host (cookies are per host, and development accepts any of these origins):
+`http://localhost:3000` for the student, `http://127.0.0.1:3000` for staff and
+`http://admin.localhost:3000` for the admin. Separate browsers or private windows work too.
+Development logins are listed at the top of `scripts/seed-dev.ts` (development only; the seed
+refuses to run with `NODE_ENV=production` and a production database starts with no users).
+`pnpm demo:smoke` runs the same flow automatically as a pre-flight check (then reseed again).
 
 | Time | Show | Where |
 | --- | --- | --- |
@@ -189,7 +192,7 @@ time of the current service + staff delay`. Details and assumptions: [docs/queue
 
 ## Testing
 
-`pnpm test` runs 111 tests in 13 files: pure logic (state machine, ordering/merge strategies,
+`pnpm test` runs 114 tests in 14 files: pure logic (state machine, ordering/merge strategies,
 estimation, passwords, tokens, CSV, rate limiting, camera ROI/smoothing and error messages, browser
 notification gating) and integration tests against a real MySQL database (auth, password reset,
 RBAC, object-level authorization, 25 concurrent joins, duplicate-join races, priority, merges,

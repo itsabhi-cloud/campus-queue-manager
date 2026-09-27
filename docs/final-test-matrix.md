@@ -1,7 +1,7 @@
 # Final test matrix
 
 Status key: **Pass** (tested and correct) · **Partial** (part tested, rest noted) · **Not tested** ·
-**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (111 tests against
+**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (114 tests against
 MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-28.
 
 | Feature | Expected result | Actual result | Status | Notes |
@@ -55,7 +55,8 @@ MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-2
 | **Security** | No leakage; CSRF; headers | Generic 500 text; malformed JSON → 400; cross-origin POST → 403; CSP/HSTS in production; production refuses http/localhost origin | Pass | Auto + manual |
 | **Accessibility** | WCAG 2.1 AA automated checks | axe-core on 21 screens/dialogs: 0 violations after fixes; keyboard sign-in; drawer focus trap | Pass | Screen-reader session not performed |
 | **Responsive** | No horizontal scroll; readable at phone widths | 360/390/768/1024/1280/1440 checked; admin tables stack with labels | Pass | Manual |
-| **Build** | Types, tests, production bundle | `tsc` clean; 111/111; build OK | Pass | |
+| **Build** | Types, tests, production bundle | `tsc` clean; 114/114; build OK | Pass | |
 | **Database** | Clean migration; constraints; no demo data | 19 tables, 31 FK, 11 unique, 6 CHECK, 0 users; idempotent | Pass | Manual on scratch DB |
 | **Deployment** | Production boot on https origin | Boots; health OK; guards work | Partial | Hosting, TLS and managed DB are external; Docker image not built |
+| **Three-role acceptance (UI)** | Student, staff and admin use the real UI at the same time | Every step passed; 2 bugs and 5 UX issues found and fixed (final-verification-report §28–30) | Pass | Manual, three concurrent sessions |
 | **Demo flow (12 steps)** | Join → call → traffic → priority → merge → camera → admin | All steps pass; student received QUEUE_JOINED, WAIT_INCREASED, PRIORITY_ADJUSTMENT, QUEUE_MERGED over SSE | Pass | Script against dev server |

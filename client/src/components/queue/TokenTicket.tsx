@@ -27,7 +27,7 @@ type Variant =
   | "paused"
   | "offline";
 
-function variantOf(entry: ActiveEntry): Variant {
+export function variantOf(entry: ActiveEntry): Variant {
   if (entry.status === "CALLED") return "called";
   if (entry.status === "SERVING") return "serving";
   if (entry.counter.status === "PAUSED") return "paused";

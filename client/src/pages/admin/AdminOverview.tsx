@@ -20,6 +20,7 @@ import {
   Stat,
   StatStrip,
 } from "@/components/ui/primitives";
+import { actionText } from "@/lib/auditText";
 import { errorMessage } from "@/lib/errors";
 import { durationLabel, relativeTime } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
@@ -94,24 +95,6 @@ function useAttention() {
   return { items, loading: catalog.isLoading };
 }
 
-const ACTION_TEXT: Record<string, string> = {
-  "queue.priority_assigned": "gave a token priority",
-  "queue.priority_removed": "removed a token's priority",
-  "queue.merged": "merged a counter's queue",
-  "queue.traffic_updated": "changed traffic",
-  "queue.token_cancelled": "cancelled a token",
-  "counter.paused": "paused a counter",
-  "counter.resumed": "reopened a counter",
-  "counter.offline": "took a counter offline",
-  "user.bulk_import": "imported students",
-  "user.student_created": "added a student",
-  "user.staff_created": "added a staff member",
-  "user.suspended": "suspended an account",
-  "user.enabled": "re-enabled an account",
-  "assignment.changed": "changed counter assignments",
-  "settings.updated": "changed settings",
-};
-
 function detailOf(metadata: Record<string, unknown>) {
   const parts: string[] = [];
   if (typeof metadata.tokenNumber === "string")
@@ -138,7 +121,7 @@ function RecentOperations() {
       <PanelHead
         id="ops-title"
         title="Recent operations"
-        description="From the audit log."
+        description="Administrative changes from the audit log: priority, merges, cancellations, counter status, traffic, accounts and settings."
         actions={
           <Link
             href="/admin/audit"
@@ -156,14 +139,17 @@ function RecentOperations() {
           onRetry={() => logs.refetch()}
         />
       ) : !logs.data || logs.data.rows.length === 0 ? (
-        <p className="muted">No operations recorded yet.</p>
+        <p className="muted">
+          No administrative changes yet. Routine calls and completions are
+          counted in Services today below.
+        </p>
       ) : (
         <ul className="activity-list">
           {logs.data.rows.slice(0, 8).map(({ log, actorName }) => (
             <li key={log.id}>
               <div>
                 <strong>{actorName ?? "System"}</strong>{" "}
-                {ACTION_TEXT[log.action] ?? log.action.replace(/[._]/g, " ")}
+                {actionText(log.action)}
                 {detailOf(log.metadata) && (
                   <small>{detailOf(log.metadata)}</small>
                 )}

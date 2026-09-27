@@ -33,6 +33,7 @@ import {
   type Prediction,
   type Roi,
 } from "@/lib/detection";
+import { useAuth } from "@/hooks/useAuth";
 import { errorMessage } from "@/lib/errors";
 import { relativeTime, timeOnly } from "@/lib/format";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
@@ -257,6 +258,17 @@ function StationRunner({
     ? new Date(station.station.lastReportedAt).getTime()
     : null;
   const stale = !serverAt || Date.now() - serverAt > staleSeconds * 1000;
+  // The server's last count covers reports from before a reload or from another device.
+  const serverCount = station.station.lastPeopleCount;
+  const currentLevel: TrafficLevel | null =
+    lastReport?.level ??
+    (serverCount === null
+      ? null
+      : serverCount >= station.heavyAt
+        ? "HEAVY"
+        : serverCount >= station.moderateAt
+          ? "MODERATE"
+          : "NORMAL");
   const running = phase === "running";
 
   return (
@@ -395,8 +407,8 @@ function StationRunner({
                     ? "None, shown for information"
                     : stale
                       ? "None while the signal is stale"
-                      : lastReport && lastReport.level !== "NORMAL"
-                        ? `Raising ${station.groupName} to ${lastReport.level.toLowerCase()} traffic`
+                      : currentLevel && currentLevel !== "NORMAL"
+                        ? `Raising ${station.groupName} to ${currentLevel.toLowerCase()} traffic`
                         : "None at normal crowding"}
                 </dd>
               </div>
@@ -470,6 +482,7 @@ function StationRunner({
 }
 
 export default function CameraStation() {
+  const { user } = useAuth();
   const stations = trpc.camera.stations.useQuery(undefined, {
     refetchInterval: 15_000,
   });
@@ -517,8 +530,16 @@ export default function CameraStation() {
         <div className="panel">
           <EmptyState
             icon={CameraOff}
-            title="No camera stations yet"
-            description="An administrator can add one under Services and counters."
+            title={
+              user?.role === "ADMIN"
+                ? "No camera stations yet"
+                : "No camera stations for your counters"
+            }
+            description={
+              user?.role === "ADMIN"
+                ? "Add one to a queue group under Services and counters."
+                : "Stations are linked to queue groups. Ask an administrator to add one for a queue you operate."
+            }
           />
         </div>
       ) : (

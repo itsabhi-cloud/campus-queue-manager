@@ -1,6 +1,6 @@
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function Dialog({
   open,
@@ -19,12 +19,25 @@ export function Dialog({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  // Dialogs here are opened from state, not a Radix trigger, so Radix has nothing to return focus
+  // to. Remember what had focus when the dialog opened and put it back on close.
+  const returnFocusTo = useRef<HTMLElement | null>(null);
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="dialog-overlay" />
         <RadixDialog.Content
           className={`dialog-content ${wide ? "dialog-wide" : ""}`}
+          onOpenAutoFocus={() => {
+            returnFocusTo.current = document.activeElement as HTMLElement;
+          }}
+          onCloseAutoFocus={event => {
+            const target = returnFocusTo.current;
+            if (target?.isConnected) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}
         >
           <div className="dialog-head">
             <RadixDialog.Title>{title}</RadixDialog.Title>
