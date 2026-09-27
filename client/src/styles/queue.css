@@ -1,0 +1,433 @@
+/* ------------------------------------------------------------ Token ticket
+ * The one bold element: a printed queue ticket with a perforated tear line.
+ */
+.ticket {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-1);
+}
+.ticket-top {
+  padding: var(--s-5) var(--s-5) var(--s-4);
+}
+.ticket-where {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.ticket-where-text {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.ticket-where-text small {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+.ticket-where-text strong {
+  display: block;
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+.ticket-number {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(64px, 17vw, 96px);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-message {
+  margin-top: var(--s-3);
+  font-weight: 700;
+  font-size: var(--text-md);
+}
+.ticket-message span {
+  display: block;
+  font-weight: 400;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.ticket-moved {
+  margin-top: var(--s-2);
+  font-size: var(--text-xs);
+  color: var(--amber-ink);
+}
+.ticket-perf {
+  position: relative;
+  margin: 0 var(--s-4);
+  border-top: 2px dashed var(--line);
+}
+.ticket-perf::before,
+.ticket-perf::after {
+  content: "";
+  position: absolute;
+  top: -13px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.ticket-perf::before {
+  left: calc(-1 * var(--s-4) - 13px);
+  clip-path: inset(0 0 0 50%);
+}
+.ticket-perf::after {
+  right: calc(-1 * var(--s-4) - 13px);
+  clip-path: inset(0 50% 0 0);
+}
+.ticket-stub {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+}
+.ticket-figure dt {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.ticket-figure dd {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ticket-figure dd small {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+.ticket-line {
+  grid-column: 1 / -1;
+}
+.ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  align-items: center;
+  padding: 0 var(--s-5) var(--s-4);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.ticket-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-5) var(--s-5);
+}
+.ticket-actions .button {
+  flex: 1;
+  min-width: 120px;
+}
+.ticket-explainer {
+  margin: 0 var(--s-5) var(--s-4);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.ticket-explainer p {
+  margin-top: var(--s-2);
+  line-height: 1.55;
+}
+/* Called: the only place signal yellow fills a surface. One pulse on arrival. */
+.ticket.is-called {
+  background: var(--signal);
+  border-color: var(--board);
+  animation: ticket-call 1.1s var(--ease) 2;
+}
+.ticket.is-called .ticket-perf {
+  border-top-color: rgba(27, 35, 64, 0.45);
+}
+.ticket.is-called .ticket-perf::before,
+.ticket.is-called .ticket-perf::after {
+  border-color: var(--board);
+}
+.ticket.is-called .ticket-message span,
+.ticket.is-called .ticket-where-text small,
+.ticket.is-called .ticket-figure dt,
+.ticket.is-called .ticket-meta {
+  color: var(--board);
+}
+.ticket.is-called .service-icon {
+  background: rgba(255, 255, 255, 0.55);
+}
+.ticket.is-serving {
+  border-color: var(--go);
+}
+@keyframes ticket-call {
+  0% {
+    box-shadow: 0 0 0 0 rgba(240, 184, 42, 0.75);
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(240, 184, 42, 0);
+  }
+}
+
+/* Queue line: the counter, the people ahead, and you. */
+.queue-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 28px;
+}
+.ql-counter {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-control);
+  background: var(--board);
+  color: #fff;
+}
+.ql-person {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.ql-person.is-priority {
+  background: var(--amber-ink);
+}
+.ql-more {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.ql-you {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--violet-strong);
+}
+.ql-you::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 4px solid var(--violet);
+  background: var(--surface);
+}
+.is-called .ql-you {
+  color: var(--board);
+}
+.is-called .ql-you::before {
+  border-color: var(--board);
+}
+
+.countdown.is-paused {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--amber-ink);
+}
+
+/* Camera signal line */
+.signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.signal.is-stale {
+  color: var(--amber-ink);
+}
+
+/* --------------------------------------------------------- Now-serving board */
+.board {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: var(--s-4);
+  min-height: 260px;
+  padding: var(--s-5);
+  border-radius: var(--r-panel);
+  background: var(--board);
+  color: #fff;
+}
+.board-label h2 {
+  font-size: var(--text-md);
+  color: #fff;
+}
+.board-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--board-muted);
+  font-size: var(--text-sm);
+}
+.board-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+}
+.board-token {
+  display: grid;
+  gap: var(--s-1);
+}
+.board-token .display {
+  font-size: 88px;
+  line-height: 0.9;
+}
+.board-tokens.is-batch .board-token .display {
+  font-size: 48px;
+}
+.board-token.is-called .display {
+  color: var(--signal);
+}
+.board-token small {
+  color: var(--board-muted);
+  font-size: var(--text-sm);
+}
+.board-empty {
+  color: var(--board-muted);
+}
+.board-empty strong {
+  display: block;
+  color: #fff;
+  font-size: var(--text-lg);
+}
+
+/* --------------------------------------------------------- Service rows/cards */
+.service-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.service-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--s-3) var(--s-4);
+  align-items: center;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--fast) var(--ease);
+}
+.service-card:hover {
+  border-color: var(--ink-3);
+}
+.service-card h3 {
+  font-size: var(--text-md);
+}
+.service-card p {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin-top: 2px;
+}
+.service-card-foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  align-items: center;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+.service-card-foot .held {
+  color: var(--violet-strong);
+  font-weight: 700;
+}
+
+.counter-choices {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--s-2);
+}
+.counter-choice {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--s-3);
+  align-items: center;
+  min-height: 56px;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  cursor: pointer;
+}
+.counter-choice.selected {
+  border-color: var(--violet);
+  box-shadow: inset 0 0 0 1px var(--violet);
+}
+.counter-choice.is-disabled {
+  cursor: not-allowed;
+  background: var(--paper);
+}
+.counter-choice strong {
+  display: block;
+  font-size: var(--text-sm);
+}
+.counter-choice small {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+.group-panel {
+  display: grid;
+  gap: var(--s-4);
+  align-content: start;
+}
+.group-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.group-panel-head p {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin-top: 2px;
+}
+.group-estimate {
+  text-align: right;
+}
+.group-estimate dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1;
+}
+.group-estimate dt {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .service-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ticket.is-called .chip-called {
+  background: var(--board);
+  color: var(--signal);
+}

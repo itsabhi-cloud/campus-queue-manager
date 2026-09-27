@@ -25,23 +25,18 @@ export function Dialog({
         <RadixDialog.Overlay className="dialog-overlay" />
         <RadixDialog.Content
           className={`dialog-content ${wide ? "dialog-wide" : ""}`}
-          aria-describedby={description ? undefined : undefined}
         >
           <div className="dialog-head">
             <RadixDialog.Title>{title}</RadixDialog.Title>
             <RadixDialog.Close className="icon-btn" aria-label="Close">
-              <X size={16} />
+              <X size={18} />
             </RadixDialog.Close>
           </div>
-          {description ? (
-            <RadixDialog.Description className="dialog-description">
-              {description}
-            </RadixDialog.Description>
-          ) : (
-            <RadixDialog.Description className="sr-only">
-              {title}
-            </RadixDialog.Description>
-          )}
+          <RadixDialog.Description
+            className={description ? "dialog-description" : "sr-only"}
+          >
+            {description ?? title}
+          </RadixDialog.Description>
           {children && <div className="dialog-body">{children}</div>}
           {footer && <div className="dialog-footer">{footer}</div>}
         </RadixDialog.Content>
@@ -57,6 +52,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Keep it",
   tone = "primary",
   reason,
   busy,
@@ -68,6 +64,7 @@ export function ConfirmDialog({
   title: string;
   description?: ReactNode;
   confirmLabel: string;
+  cancelLabel?: string;
   tone?: "primary" | "danger" | "dark";
   reason?: { label: string; required?: boolean; placeholder?: string };
   busy?: boolean;
@@ -92,7 +89,7 @@ export function ConfirmDialog({
             onClick={() => onOpenChange(false)}
             disabled={busy}
           >
-            Cancel
+            {cancelLabel}
           </button>
           <button
             className={`button ${tone === "danger" ? "button-danger-solid" : tone === "dark" ? "button-dark" : "button-primary"}`}
@@ -117,11 +114,14 @@ export function ConfirmDialog({
             maxLength={200}
             value={text}
             placeholder={reason.placeholder}
+            aria-describedby={
+              reason.required ? "confirm-reason-hint" : undefined
+            }
             onChange={event => setText(event.target.value)}
           />
           {reason.required && (
-            <small className="field-hint">
-              Required · recorded in the audit log
+            <small className="field-hint" id="confirm-reason-hint">
+              Required. Recorded in the audit log.
             </small>
           )}
         </div>

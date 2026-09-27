@@ -1,0 +1,78 @@
+/*
+ * QueueSense "Wayfinding" design tokens.
+ * Subject: campus queues — printed tickets, now-serving boards, campus signage.
+ * Every colour pairing used for text is ≥ 4.5:1 (checked when the palette was chosen).
+ */
+:root {
+  /* Core palette */
+  --board: #1b2340; /* text, dark now-serving surfaces */
+  --board-2: #28325a; /* raised surface on board */
+  --board-muted: #c9cee0; /* secondary text on board */
+  --paper: #f5f6f8; /* app background (cool, not cream) */
+  --surface: #ffffff;
+  --violet: #5b45c9; /* brand, links, your token */
+  --violet-strong: #4a36b0;
+  --violet-soft: #eceafb;
+  --signal: #f0b82a; /* reserved: "it's your turn / called" */
+  --signal-soft: #fff4d6;
+  --signal-ink: #5c3f00;
+  --go: #1e7f55; /* open, serving, done */
+  --go-ink: #17664a;
+  --go-soft: #e3f4ec;
+  --halt: #b83b34; /* offline, cancelled, errors */
+  --halt-ink: #9b2f29;
+  --halt-soft: #fbe9e7;
+  --amber-ink: #8a5300; /* moderate traffic, paused */
+  --amber-soft: #fff1d6;
+
+  /* Board-tinted neutrals */
+  --ink: var(--board);
+  --ink-2: #454e6e; /* secondary text */
+  --ink-3: #5a6283; /* muted text (≥ 5.2:1 on every light surface) */
+  --line: #d9dde8;
+  --line-soft: #e9ecf2;
+  --fill: #eef0f5;
+
+  /* Type */
+  --font-body:
+    "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --leading: 1.5;
+
+  /* Space (4px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* Shape: controls, panels, chips. The ticket has its own notched shape. */
+  --r-control: 6px;
+  --r-panel: 12px;
+  --r-pill: 999px;
+
+  /* Elevation */
+  --shadow-1:
+    0 1px 2px rgba(27, 35, 64, 0.06), 0 0 0 1px rgba(27, 35, 64, 0.02);
+  --shadow-pop: 0 18px 48px rgba(27, 35, 64, 0.22);
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --fast: 140ms;
+
+  /* Layout */
+  --sidebar-w: 236px;
+  --topbar-h: 60px;
+  --content-max: 1240px;
+  --touch: 44px;
+}

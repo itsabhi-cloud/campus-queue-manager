@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Info, Ticket, Users } from "lucide-react";
-import { CameraSignal } from "@/components/queue/ActiveTokenCard";
+import { ArrowLeft, Info } from "lucide-react";
+import { CameraSignal } from "@/components/queue/CameraSignal";
 import {
-  Callout,
   CounterBadge,
   EmptyState,
   ErrorState,
   LoadingBlock,
+  Note,
   PageHeader,
   ServiceIcon,
   TrafficBadge,
@@ -20,6 +20,18 @@ import { useRealtime } from "@/realtime/RealtimeProvider";
 
 type Group =
   RouterOutputs["catalog"]["list"]["services"][number]["groups"][number];
+
+function counterDetail(group: Group, counter: Group["counters"][number]) {
+  if (counter.status === "OPEN") {
+    const serving = counter.nowServing.length
+      ? `, serving ${counter.nowServing.join(", ")}`
+      : "";
+    return `${counter.waiting} waiting, ${approxMinutes(counter.estimatedWaitSeconds)}${serving}`;
+  }
+  if (counter.mergedIntoCounterId)
+    return `Moved to ${group.counters.find(c => c.id === counter.mergedIntoCounterId)?.name ?? "another counter"}`;
+  return counter.statusReason ?? "Not taking tokens";
+}
 
 function GroupPanel({
   group,
@@ -38,8 +50,8 @@ function GroupPanel({
   );
   const join = trpc.queue.join.useMutation({
     onSuccess: result => {
-      toast.success(`You're in: ${result.tokenNumber}`, {
-        description: `${result.counterName} · ${plural(result.peopleAhead, unitNoun(group.unitLabel, 1), group.unitLabel)} ahead. You can leave the line now.`,
+      toast.success(`Your token is ${result.tokenNumber}`, {
+        description: `${result.counterName}. ${plural(result.peopleAhead, unitNoun(group.unitLabel, 1), group.unitLabel)} ahead. You can leave the line.`,
       });
       void utils.queue.myActive.invalidate();
       void utils.catalog.list.invalidate();
@@ -48,6 +60,11 @@ function GroupPanel({
     onError: error => toast.error(errorMessage(error)),
   });
   const canJoin = openCounters.length > 0 && !heldToken;
+  const chosen =
+    choice === "auto" ? null : group.counters.find(c => c.id === choice);
+  const estimate = chosen
+    ? chosen.estimatedWaitSeconds
+    : group.estimatedWaitSeconds;
 
   return (
     <section
@@ -57,37 +74,32 @@ function GroupPanel({
       <div className="group-panel-head">
         <div>
           <h2 id={`group-${group.id}`}>{group.name}</h2>
-          {group.description && <p className="muted">{group.description}</p>}
+          {group.description && <p>{group.description}</p>}
         </div>
-        <div className="group-stats">
-          <span>
-            <Users size={14} aria-hidden /> {group.waiting} waiting
-          </span>
-          <span>
-            {group.estimatedWaitSeconds === null
-              ? "No counter open"
-              : `${approxMinutes(group.estimatedWaitSeconds)} if you join now`}
-          </span>
-        </div>
+        <dl className="group-estimate">
+          <dt>If you join now</dt>
+          <dd className="num">
+            {estimate === null ? "Closed" : approxMinutes(estimate)}
+          </dd>
+        </dl>
       </div>
-      <div className="token-signals">
+      <div className="signals">
+        <span className="num">{group.waiting} waiting</span>
         <TrafficBadge level={group.traffic.effectiveLevel} />
         {group.traffic.delaySeconds > 0 && (
-          <span className="signal-chip">
+          <span>
             +{Math.round(group.traffic.delaySeconds / 60)} min
-            {group.traffic.reason ? ` · ${group.traffic.reason}` : ""}
+            {group.traffic.reason ? `: ${group.traffic.reason}` : ""}
           </span>
         )}
         {group.serveCapacity > 1 && (
-          <span className="signal-chip">
-            Boards up to {group.serveCapacity} at a time
-          </span>
+          <span>Boards up to {group.serveCapacity} at a time</span>
         )}
         <CameraSignal camera={group.camera} />
       </div>
 
       <fieldset className="counter-choices" disabled={!canJoin}>
-        <legend className="sr-only">Choose a counter</legend>
+        <legend className="sr-only">Choose a counter for {group.name}</legend>
         {openCounters.length > 1 && (
           <label
             className={`counter-choice ${choice === "auto" ? "selected" : ""}`}
@@ -100,7 +112,7 @@ function GroupPanel({
             />
             <span>
               <strong>Any open counter</strong>
-              <small>We'll place you in the shortest line</small>
+              <small>We'll put you in the shortest line</small>
             </span>
           </label>
         )}
@@ -118,13 +130,7 @@ function GroupPanel({
             />
             <span>
               <strong>{counter.name}</strong>
-              <small>
-                {counter.status === "OPEN"
-                  ? `${counter.waiting} waiting · ${approxMinutes(counter.estimatedWaitSeconds)}${counter.nowServing.length ? ` · now ${counter.nowServing.join(", ")}` : ""}`
-                  : counter.mergedIntoCounterId
-                    ? `Merged into ${group.counters.find(c => c.id === counter.mergedIntoCounterId)?.name ?? "another counter"}`
-                    : (counter.statusReason ?? "Not accepting tokens")}
-              </small>
+              <small>{counterDetail(group, counter)}</small>
             </span>
             <CounterBadge status={counter.status} />
           </label>
@@ -136,12 +142,11 @@ function GroupPanel({
           href={`/app/tokens/${heldToken.id}`}
           className="button button-outline button-full"
         >
-          <Ticket size={16} aria-hidden /> You hold {heldToken.tokenNumber} —
-          view live position <ArrowRight size={15} aria-hidden />
+          You hold {heldToken.tokenNumber}. View your place
         </Link>
       ) : (
         <button
-          className="button button-primary button-full"
+          className="button button-primary button-large button-full"
           disabled={!canJoin || join.isPending}
           onClick={() =>
             join.mutate({
@@ -154,8 +159,7 @@ function GroupPanel({
             ? "No counter is open right now"
             : join.isPending
               ? "Reserving your place…"
-              : "Get digital token"}
-          {canJoin && !join.isPending && <ArrowRight size={16} aria-hidden />}
+              : "Get a token"}
         </button>
       )}
     </section>
@@ -183,11 +187,11 @@ export default function ServiceDetail({ slug }: { slug: string }) {
     return (
       <div className="panel">
         <EmptyState
-          title="Service not available"
-          description="This service doesn't exist or isn't open right now."
+          title="This service isn't available"
+          description="It doesn't exist or isn't open right now."
           action={
-            <Link href="/app" className="button button-outline button-small">
-              Back to services
+            <Link href="/app" className="button button-outline">
+              See all services
             </Link>
           }
         />
@@ -197,18 +201,17 @@ export default function ServiceDetail({ slug }: { slug: string }) {
   return (
     <>
       <Link href="/app" className="back-link">
-        <ArrowLeft size={15} aria-hidden /> All services
+        <ArrowLeft size={16} aria-hidden /> All services
       </Link>
       <PageHeader
-        eyebrow="Campus service"
         title={service.name}
         subtitle={service.description}
-        actions={<ServiceIcon kind={service.kind} size={22} />}
+        actions={<ServiceIcon kind={service.kind} large />}
       />
       {service.notice && (
-        <Callout tone="teal" icon={Info}>
-          {service.notice}
-        </Callout>
+        <Note icon={Info}>
+          <strong>What QueueSense does here.</strong> {service.notice}
+        </Note>
       )}
       <div className="group-grid">
         {service.groups.map(group => {
@@ -230,7 +233,7 @@ export default function ServiceDetail({ slug }: { slug: string }) {
       </div>
       <p className="fine-print">
         Wait times are estimates based on the people ahead of you, recent
-        service times and current traffic. They are not appointments.
+        service times and current traffic. They aren't appointments.
       </p>
     </>
   );

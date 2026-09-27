@@ -52,7 +52,6 @@ export default function AdminAudit() {
   return (
     <>
       <PageHeader
-        eyebrow="Governance"
         title="Audit log"
         subtitle="Who changed what, and when. Passwords, codes and session tokens are never recorded."
       />

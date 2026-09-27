@@ -43,7 +43,7 @@ export default function Activate() {
         <BrandMark />
         <div>
           <h1>Activate your account</h1>
-          <p className="page-subtitle">
+          <p className="lede">
             Enter the one-time code from your administration office and choose a
             password. The same form resets a forgotten password.
           </p>
@@ -104,7 +104,7 @@ export default function Activate() {
           />
         </Field>
         <button
-          className="button button-primary button-full"
+          className="button button-primary button-large button-full"
           disabled={
             activate.isPending ||
             !email ||

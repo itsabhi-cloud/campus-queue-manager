@@ -1,5 +1,5 @@
-import { Link } from "wouter";
 import { History as HistoryIcon } from "lucide-react";
+import { Link } from "wouter";
 import {
   EmptyState,
   ErrorState,
@@ -7,7 +7,6 @@ import {
   PageHeader,
   ServiceIcon,
   StatusBadge,
-  TokenNumber,
 } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/errors";
 import { dateTime, durationLabel } from "@/lib/format";
@@ -22,9 +21,8 @@ export default function History() {
   return (
     <>
       <PageHeader
-        eyebrow="Student"
-        title="Queue history"
-        subtitle="Your past tokens across campus services."
+        title="History"
+        subtitle="Tokens you've finished, cancelled or missed."
       />
       {history.isLoading ? (
         <LoadingBlock rows={3} />
@@ -37,8 +35,13 @@ export default function History() {
         <div className="panel">
           <EmptyState
             icon={HistoryIcon}
-            title="No history yet"
-            description="Finished, cancelled and skipped tokens will appear here."
+            title="No past tokens yet"
+            description="Once you finish or cancel a token, it shows up here."
+            action={
+              <Link href="/app" className="button button-primary">
+                Find a service
+              </Link>
+            }
           />
         </div>
       ) : (
@@ -50,14 +53,16 @@ export default function History() {
                   <ServiceIcon kind={item.serviceKind} />
                   <div className="list-row-main">
                     <strong>
-                      <TokenNumber token={item.tokenNumber} /> ·{" "}
+                      <span className="display token-inline">
+                        {item.tokenNumber}
+                      </span>{" "}
                       {item.serviceName}
                     </strong>
                     <small>
-                      {item.groupName} · {item.counterName} ·{" "}
+                      {item.groupName}, {item.counterName}.{" "}
                       {dateTime(item.joinedAt)}
                       {item.calledAt
-                        ? ` · waited ${durationLabel((new Date(item.calledAt).getTime() - new Date(item.joinedAt).getTime()) / 1000)}`
+                        ? `. Waited ${durationLabel((new Date(item.calledAt).getTime() - new Date(item.joinedAt).getTime()) / 1000)}`
                         : ""}
                     </small>
                   </div>
@@ -68,11 +73,11 @@ export default function History() {
           </ul>
           {history.hasNextPage && (
             <button
-              className="button button-outline button-full"
+              className="button button-outline button-full mt-4"
               onClick={() => history.fetchNextPage()}
               disabled={history.isFetchingNextPage}
             >
-              {history.isFetchingNextPage ? "Loading…" : "Load more"}
+              {history.isFetchingNextPage ? "Loading…" : "Show older tokens"}
             </button>
           )}
         </div>

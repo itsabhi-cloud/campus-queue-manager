@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
-  BellRing,
   Check,
   CheckCircle2,
-  Clock3,
   FastForward,
   GitMerge,
   Gauge,
@@ -15,8 +13,6 @@ import {
   SkipForward,
   Star,
   StarOff,
-  Ticket,
-  Users,
   XCircle,
 } from "lucide-react";
 import {
@@ -25,7 +21,7 @@ import {
   type MergeStrategy,
   type TrafficLevel,
 } from "@shared/domain";
-import { CameraSignal } from "@/components/queue/ActiveTokenCard";
+import { CameraSignal } from "@/components/queue/CameraSignal";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import {
   CounterBadge,
@@ -33,11 +29,12 @@ import {
   ErrorState,
   Field,
   LoadingBlock,
-  MetricCard,
+  Note,
   PageHeader,
+  PanelHead,
   ServiceIcon,
-  StatusBadge,
-  TokenNumber,
+  Stat,
+  StatStrip,
   TrafficBadge,
 } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/errors";
@@ -108,6 +105,19 @@ function useStaffMutations(counterId: number) {
     }),
   };
 }
+
+const EVENT_TEXT: Record<string, string> = {
+  JOINED: "joined",
+  CALLED: "called",
+  SERVING: "being served",
+  COMPLETED: "completed",
+  SKIPPED: "skipped",
+  CANCELLED: "cancelled",
+  PRIORITY_ASSIGNED: "given priority",
+  PRIORITY_REMOVED: "priority removed",
+  MERGED: "moved here",
+  COUNTER_STATUS: "status changed",
+};
 
 type Dialogs =
   | { kind: "none" }
@@ -350,6 +360,46 @@ function OfflineDialog({
   );
 }
 
+function NowServing({ board }: { board: Board }) {
+  const batch = board.group.serveCapacity > 1;
+  return (
+    <section className="board" aria-labelledby="now-serving">
+      <div className="board-label">
+        <h2 id="now-serving">Now serving</h2>
+        {batch && <span>Up to {board.group.serveCapacity} per trip</span>}
+      </div>
+      {board.inProgress.length === 0 ? (
+        <div className="board-empty">
+          <strong>Nobody at the counter</strong>
+          {board.waiting.length
+            ? `${board.waiting.length} waiting. Call the next token when you're ready.`
+            : "Nobody is waiting."}
+        </div>
+      ) : (
+        <div className={`board-tokens ${batch ? "is-batch" : ""}`}>
+          {board.inProgress.map(entry => (
+            <div
+              key={entry.id}
+              className={`board-token ${entry.status === "CALLED" ? "is-called" : ""}`}
+            >
+              <span className="display">{entry.tokenNumber}</span>
+              <small>
+                {entry.status === "CALLED"
+                  ? `Called ${relativeTime(entry.calledAt)}, student notified`
+                  : `Serving since ${relativeTime(entry.servingAt)}`}
+              </small>
+              <small>
+                {entry.holderName}
+                {entry.holderCollegeId ? `, ${entry.holderCollegeId}` : ""}
+              </small>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function CounterBoard({ counterId }: { counterId: number }) {
   const { pollInterval } = useRealtime();
   const board = trpc.staff.board.useQuery(
@@ -375,102 +425,53 @@ function CounterBoard({ counterId }: { counterId: number }) {
   const atCapacity = b.inProgress.length >= b.group.serveCapacity;
   const batch = b.group.serveCapacity > 1;
   const busy = Object.values(m).some(mutation => mutation.isPending);
+  const callBlocker = !open
+    ? "Resume the counter to call tokens."
+    : atCapacity
+      ? batch
+        ? "The current trip is full."
+        : "Finish the current token first."
+      : b.waiting.length === 0
+        ? "Nobody is waiting."
+        : null;
 
   return (
     <>
-      <div className="staff-toolbar">
-        <div className="staff-toolbar-title">
-          <ServiceIcon kind={b.service.kind} />
+      <div className="console-head">
+        <div className="cell-with-icon">
+          <ServiceIcon kind={b.service.kind} large />
           <div>
-            <strong>{b.counter.name}</strong>
+            <h2>{b.counter.name}</h2>
             <small>
-              {b.service.name} · {b.group.name} · prefix {b.counter.tokenPrefix}
+              {b.service.name}, {b.group.name}. Tokens start with{" "}
+              {b.counter.tokenPrefix}
             </small>
           </div>
         </div>
-        <div className="staff-toolbar-status">
-          <CounterBadge status={b.counter.status} />
-          {b.counter.statusReason && b.counter.status !== "OPEN" && (
-            <span className="muted">{b.counter.statusReason}</span>
-          )}
-        </div>
+        <CounterBadge status={b.counter.status} />
       </div>
       {b.counter.mergedIntoCounterId && (
-        <div className="callout callout-orange" role="status">
-          <GitMerge size={18} aria-hidden />
-          <span>
-            This counter's queue was merged into{" "}
-            {b.siblings.find(s => s.id === b.counter.mergedIntoCounterId)
-              ?.name ?? "another counter"}
-            . Reopening it accepts new tokens here; merged tokens stay where
-            they are.
-          </span>
-        </div>
+        <Note tone="warn" icon={GitMerge}>
+          This counter's line was moved to{" "}
+          {b.siblings.find(s => s.id === b.counter.mergedIntoCounterId)?.name ??
+            "another counter"}
+          . Reopening it takes new tokens here; moved tokens stay where they
+          are.
+        </Note>
       )}
 
-      <div className="staff-layout">
-        <section className="staff-main-card" aria-labelledby="now-serving">
-          <div className="card-heading">
-            <div>
-              <div className="eyebrow">Now serving</div>
-              <h2 id="now-serving">
-                {batch ? "Current batch" : "Current token"}
-              </h2>
-            </div>
-            <span className="muted">
-              {batch ? `Capacity ${b.group.serveCapacity}` : null}
-            </span>
-          </div>
-          <div
-            className={`current-token-stage ${called.length ? "is-called" : ""}`}
-          >
-            <div className="stage-glow" aria-hidden />
-            {b.inProgress.length === 0 ? (
-              <div className="no-active-token">
-                <Ticket size={29} aria-hidden />
-                <strong>No active token</strong>
-                <span>
-                  {b.waiting.length
-                    ? "Call the next person when ready."
-                    : "No one is waiting."}
-                </span>
-              </div>
-            ) : (
-              <div className="in-progress-list">
-                {b.inProgress.map(entry => (
-                  <div key={entry.id} className="in-progress-item">
-                    <TokenNumber token={entry.tokenNumber} large={!batch} />
-                    <StatusBadge status={entry.status} />
-                    <small>
-                      {entry.holderName}
-                      {entry.holderCollegeId
-                        ? ` · ${entry.holderCollegeId}`
-                        : ""}{" "}
-                      ·{" "}
-                      {entry.status === "CALLED"
-                        ? `called ${relativeTime(entry.calledAt)}`
-                        : `serving ${relativeTime(entry.servingAt)}`}
-                    </small>
-                    {entry.status === "CALLED" && (
-                      <span className="called-prompt">
-                        <BellRing size={13} aria-hidden /> Student notified
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="control-grid">
+      <div className="console">
+        <div className="console-main">
+          <NowServing board={b} />
+          <div className="console-actions">
             <button
-              className="button button-primary"
+              className="button button-primary button-large"
               onClick={() => m.callNext.mutate({ counterId })}
-              disabled={busy || !open || atCapacity || b.waiting.length === 0}
-              title={!open ? "Resume the counter to call tokens" : undefined}
+              disabled={busy || Boolean(callBlocker)}
+              aria-describedby="call-blocker"
             >
-              <SkipForward size={17} aria-hidden />{" "}
-              {batch ? "Call next batch" : "Call next"}
+              <SkipForward size={20} aria-hidden />{" "}
+              {batch ? "Call next trip" : "Call next"}
             </button>
             <button
               className="button button-dark"
@@ -492,7 +493,7 @@ function CounterBoard({ counterId }: { counterId: number }) {
               <Check size={17} aria-hidden /> {batch ? "Boarded" : "Complete"}
             </button>
             <button
-              className="button button-outline button-danger"
+              className="button button-outline"
               onClick={() =>
                 setDialog({
                   kind: "skip",
@@ -505,6 +506,11 @@ function CounterBoard({ counterId }: { counterId: number }) {
               <FastForward size={16} aria-hidden /> Skip no-show
             </button>
           </div>
+          {callBlocker && (
+            <p className="fine-print mt-0" id="call-blocker">
+              {callBlocker}
+            </p>
+          )}
           {b.inProgress.length > 0 && (
             <button
               className="text-button danger"
@@ -516,110 +522,103 @@ function CounterBoard({ counterId }: { counterId: number }) {
                 })
               }
             >
-              <XCircle size={14} aria-hidden /> Cancel current{" "}
-              {batch ? "batch" : "token"}…
+              <XCircle size={15} aria-hidden /> Cancel{" "}
+              {batch ? "this trip" : "this token"}
             </button>
           )}
 
-          <div className="counter-controls">
-            <div>
-              <strong>Counter</strong>
-              <small>
-                {open
-                  ? "Accepting new tokens"
-                  : b.counter.status === "PAUSED"
-                    ? "Paused — places are kept, no new tokens"
-                    : "Offline — not accepting tokens"}
-              </small>
-            </div>
-            <div className="counter-control-buttons">
-              {open ? (
-                <button
-                  className="button button-outline button-small"
-                  onClick={() => setDialog({ kind: "pause" })}
-                  disabled={busy}
-                >
-                  <Pause size={14} aria-hidden /> Pause
-                </button>
-              ) : (
-                <button
-                  className="button button-warning button-small"
-                  onClick={() => m.status.mutate({ counterId, status: "OPEN" })}
-                  disabled={busy}
-                >
-                  <Play size={14} aria-hidden /> Resume
-                </button>
-              )}
-              {b.counter.status !== "OFFLINE" && (
-                <button
-                  className="button button-outline button-small button-danger"
-                  onClick={() => setDialog({ kind: "offline" })}
-                  disabled={busy}
-                >
-                  <PowerOff size={14} aria-hidden /> Mark offline
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="counter-controls">
-            <div>
-              <strong>
-                Traffic ·{" "}
-                <TrafficBadge
-                  level={b.traffic.effectiveLevel}
-                  label={
-                    b.traffic.effectiveLevel !== b.traffic.staffLevel
-                      ? "Effective"
-                      : "Level"
-                  }
-                />
-              </strong>
-              <small>
-                {b.traffic.delaySeconds
-                  ? `+${Math.round(b.traffic.delaySeconds / 60)} min delay · `
-                  : ""}
-                {b.traffic.reason ?? "No reason set"} ·{" "}
-                {Math.round(b.traffic.serviceSeconds / 6) / 10} min per{" "}
-                {b.group.serveCapacity > 1 ? "cycle" : "person"}
-                {b.traffic.effectiveLevel !== b.traffic.staffLevel
-                  ? ` · raised by camera (staff: ${TRAFFIC_LABEL[b.traffic.staffLevel]})`
-                  : ""}
-              </small>
-              <CameraSignal camera={b.camera} />
-            </div>
-            <button
-              className="button button-outline button-small"
-              onClick={() => setDialog({ kind: "traffic" })}
-              disabled={busy}
-            >
-              <Gauge size={14} aria-hidden /> Adjust
-            </button>
-          </div>
-        </section>
-
-        <aside className="staff-side-column">
           <section
-            className="queue-list-card"
-            aria-labelledby="waiting-heading"
+            className="panel console-settings"
+            aria-label="Counter settings"
           >
-            <div className="card-heading compact">
+            <div className="setting-row">
               <div>
-                <div className="eyebrow">Up next</div>
-                <h3 id="waiting-heading">Waiting line</h3>
+                <strong>Counter</strong>
+                <small>
+                  {open
+                    ? "Taking new tokens"
+                    : b.counter.status === "PAUSED"
+                      ? `Paused${b.counter.statusReason ? `: ${b.counter.statusReason}` : ""}. Places are kept.`
+                      : `Offline${b.counter.statusReason ? `: ${b.counter.statusReason}` : ""}.`}
+                </small>
               </div>
-              <span
-                className="count-badge"
-                aria-label={`${b.waiting.length} waiting`}
-              >
-                {b.waiting.length}
-              </span>
+              <div className="setting-row-actions">
+                {open ? (
+                  <button
+                    className="button button-outline button-small"
+                    onClick={() => setDialog({ kind: "pause" })}
+                    disabled={busy}
+                  >
+                    <Pause size={14} aria-hidden /> Pause
+                  </button>
+                ) : (
+                  <button
+                    className="button button-warning button-small"
+                    onClick={() =>
+                      m.status.mutate({ counterId, status: "OPEN" })
+                    }
+                    disabled={busy}
+                  >
+                    <Play size={14} aria-hidden /> Resume
+                  </button>
+                )}
+                {b.counter.status !== "OFFLINE" && (
+                  <button
+                    className="button button-outline button-small button-danger"
+                    onClick={() => setDialog({ kind: "offline" })}
+                    disabled={busy}
+                  >
+                    <PowerOff size={14} aria-hidden /> Take offline
+                  </button>
+                )}
+              </div>
             </div>
-            {b.waiting.length === 0 ? (
-              <div className="compact-empty">
-                <CheckCircle2 size={22} aria-hidden />
-                <span>No one is waiting</span>
+            <div className="setting-row">
+              <div>
+                <strong>
+                  <TrafficBadge level={b.traffic.effectiveLevel} />
+                </strong>
+                <small>
+                  {b.traffic.delaySeconds
+                    ? `+${Math.round(b.traffic.delaySeconds / 60)} min delay. `
+                    : ""}
+                  {b.traffic.reason ? `${b.traffic.reason}. ` : ""}
+                  About {Math.round(b.traffic.serviceSeconds / 6) / 10} min per{" "}
+                  {batch ? "trip" : "person"}.
+                  {b.traffic.effectiveLevel !== b.traffic.staffLevel
+                    ? ` Raised by the camera (you set ${TRAFFIC_LABEL[b.traffic.staffLevel].toLowerCase()}).`
+                    : ""}
+                </small>
+                <CameraSignal camera={b.camera} />
               </div>
+              <button
+                className="button button-outline button-small"
+                onClick={() => setDialog({ kind: "traffic" })}
+                disabled={busy}
+              >
+                <Gauge size={14} aria-hidden /> Adjust traffic
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <aside className="console-main">
+          <section className="panel" aria-labelledby="waiting-heading">
+            <PanelHead
+              id="waiting-heading"
+              title={`Waiting (${b.waiting.length})`}
+              description={
+                b.waiting.length
+                  ? `Last in line waits ${approxMinutes(b.waiting[b.waiting.length - 1].estimatedWaitSeconds)}. Limit ${b.group.maxWaiting}.`
+                  : `Limit ${b.group.maxWaiting}.`
+              }
+            />
+            {b.waiting.length === 0 ? (
+              <EmptyState
+                icon={CheckCircle2}
+                title="Nobody is waiting"
+                description="New tokens appear here instantly."
+              />
             ) : (
               <ol className="waiting-list">
                 {b.waiting.map(entry => (
@@ -627,24 +626,22 @@ function CounterBoard({ counterId }: { counterId: number }) {
                     key={entry.id}
                     className={entry.isPriority ? "is-priority" : ""}
                   >
-                    <span className="queue-rank">
-                      {String(entry.position).padStart(2, "0")}
+                    <span
+                      className="waiting-pos"
+                      aria-label={`Position ${entry.position}`}
+                    >
+                      {entry.position}
                     </span>
                     <div className="waiting-main">
-                      <TokenNumber token={entry.tokenNumber} />
+                      <span className="display">{entry.tokenNumber}</span>
                       <small>
-                        {entry.isPriority ? (
-                          <span className="priority-pill">
-                            Priority · {entry.priorityReason}
-                          </span>
-                        ) : (
-                          <>joined {relativeTime(entry.joinedAt)}</>
-                        )}
-                        {entry.movedFrom ? ` · from ${entry.movedFrom}` : ""}
+                        {entry.isPriority
+                          ? `Priority: ${entry.priorityReason}`
+                          : `Joined ${relativeTime(entry.joinedAt)}`}
+                        {entry.movedFrom ? `. From ${entry.movedFrom}` : ""}
                       </small>
                     </div>
-                    <span className="clock-label">
-                      <Clock3 size={13} aria-hidden />{" "}
+                    <span className="waiting-est num">
                       {approxMinutes(entry.estimatedWaitSeconds)}
                     </span>
                     <div className="row-actions">
@@ -663,13 +660,13 @@ function CounterBoard({ counterId }: { counterId: number }) {
                         }
                       >
                         {entry.isPriority ? (
-                          <StarOff size={15} />
+                          <StarOff size={16} />
                         ) : (
-                          <Star size={15} />
+                          <Star size={16} />
                         )}
                       </button>
                       <button
-                        className="icon-btn"
+                        className="icon-btn danger"
                         title="Cancel token"
                         aria-label={`Cancel ${entry.tokenNumber}`}
                         onClick={() =>
@@ -680,59 +677,27 @@ function CounterBoard({ counterId }: { counterId: number }) {
                           })
                         }
                       >
-                        <XCircle size={15} />
+                        <XCircle size={16} />
                       </button>
                     </div>
                   </li>
                 ))}
               </ol>
             )}
-            <div className="queue-card-footer">
-              <span>
-                <Users size={14} aria-hidden /> Limit {b.group.maxWaiting}
-              </span>
-              <span className="estimated-text">
-                {b.waiting.length
-                  ? `Last in line ~${approxMinutes(b.waiting[b.waiting.length - 1].estimatedWaitSeconds)}`
-                  : ""}
-              </span>
-            </div>
           </section>
 
-          <section className="activity-card" aria-labelledby="activity-heading">
-            <div className="card-heading compact">
-              <div>
-                <div className="eyebrow">Activity</div>
-                <h3 id="activity-heading">Recent events</h3>
-              </div>
-            </div>
+          <section className="panel" aria-labelledby="activity-heading">
+            <PanelHead id="activity-heading" title="Recent activity" as="h3" />
             {b.recentEvents.length === 0 ? (
-              <div className="compact-empty">No events yet today</div>
+              <p className="muted">Nothing yet today.</p>
             ) : (
               <ul className="activity-list">
                 {b.recentEvents.map(event => (
-                  <li className="activity-row" key={event.id}>
-                    <span
-                      className={`activity-icon activity-${(event.toStatus ?? event.type).toLowerCase()}`}
-                      aria-hidden
-                    >
-                      {event.type === "COMPLETED" ? (
-                        <CheckCircle2 size={14} />
-                      ) : event.type === "SKIPPED" ? (
-                        <SkipForward size={14} />
-                      ) : event.type.startsWith("PRIORITY") ? (
-                        <Star size={14} />
-                      ) : (
-                        <Ticket size={14} />
-                      )}
-                    </span>
+                  <li key={event.id}>
                     <div>
-                      <strong>
-                        {event.tokenNumber ?? b.counter.name}{" "}
-                        <span>
-                          {event.type.toLowerCase().replace(/_/g, " ")}
-                        </span>
-                      </strong>
+                      <strong>{event.tokenNumber ?? b.counter.name}</strong>{" "}
+                      {EVENT_TEXT[event.type] ??
+                        event.type.toLowerCase().replace(/_/g, " ")}
                       {event.reason && <small>{event.reason}</small>}
                     </div>
                     <time dateTime={new Date(event.createdAt).toISOString()}>
@@ -746,36 +711,27 @@ function CounterBoard({ counterId }: { counterId: number }) {
         </aside>
       </div>
 
-      <div className="staff-metrics">
-        <MetricCard
+      <StatStrip label="Today at this counter">
+        <Stat
           label="Waiting now"
           value={b.waiting.length}
           helper={`${b.inProgress.length} at the counter`}
-          icon={Users}
-          accent="violet"
         />
-        <MetricCard
+        <Stat
           label="Completed today"
           value={b.today.completed}
-          helper={`${b.today.joined} tokens issued today`}
-          icon={CheckCircle2}
-          accent="teal"
+          helper={`${b.today.joined} tokens issued`}
         />
-        <MetricCard
-          label="Avg. service today"
+        <Stat
+          label="Average service"
           value={durationLabel(b.today.averageServiceSeconds)}
           helper={`Configured ${durationLabel(b.traffic.configuredSeconds)}`}
-          icon={Clock3}
-          accent="orange"
         />
-        <MetricCard
-          label="Skipped / cancelled"
+        <Stat
+          label="Skipped or cancelled"
           value={`${b.today.skipped} / ${b.today.cancelled}`}
-          helper="today at this counter"
-          icon={FastForward}
-          accent="blue"
         />
-      </div>
+      </StatStrip>
 
       <ConfirmDialog
         open={dialog.kind === "skip"}
@@ -919,9 +875,12 @@ export default function StaffConsole({ counterId }: { counterId?: string }) {
   return (
     <>
       <PageHeader
-        eyebrow="Operations"
         title="Counter console"
-        subtitle="One clear action at a time. Every change is pushed to students instantly."
+        subtitle={
+          id
+            ? undefined
+            : "Choose the counter you are running. Students see every change you make instantly."
+        }
         actions={
           list.length > 1 && (
             <label className="counter-switcher">
@@ -956,14 +915,14 @@ export default function StaffConsole({ counterId }: { counterId?: string }) {
         <div className="counter-picker">
           {list.map(c => (
             <Link key={c.id} href={`/staff/${c.id}`} className="service-card">
-              <div className="service-card-head">
-                <ServiceIcon kind={c.serviceKind} />
-                <CounterBadge status={c.status} />
+              <ServiceIcon kind={c.serviceKind} large />
+              <div>
+                <h3>{c.name}</h3>
+                <p>
+                  {c.serviceName}, {c.groupName}
+                </p>
               </div>
-              <h3>{c.name}</h3>
-              <p>
-                {c.serviceName} · {c.groupName}
-              </p>
+              <CounterBadge status={c.status} />
             </Link>
           ))}
         </div>

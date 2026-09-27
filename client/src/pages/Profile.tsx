@@ -73,7 +73,6 @@ function PasswordForm() {
   return (
     <form className="panel form-stack" onSubmit={submit}>
       <div>
-        <div className="eyebrow">Security</div>
         <h3>Change password</h3>
       </div>
       {change.error && (
@@ -176,7 +175,6 @@ export default function Profile() {
   return (
     <>
       <PageHeader
-        eyebrow="Account"
         title="Profile"
         subtitle="Keep your contact details and alert preferences up to date."
       />
@@ -239,7 +237,6 @@ export default function Profile() {
         <div className="profile-forms">
           <form className="panel form-stack" onSubmit={save}>
             <div>
-              <div className="eyebrow">Details</div>
               <h3>Contact</h3>
             </div>
             {update.error && (

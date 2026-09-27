@@ -1,13 +1,5 @@
-import {
-  Activity,
-  CheckCircle2,
-  Clock3,
-  Database,
-  Radio,
-  Timer,
-  Users,
-  XCircle,
-} from "lucide-react";
+import { Link } from "wouter";
+import { CameraOff, CheckCircle2, Gauge, Pause, PowerOff } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -22,9 +14,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ErrorState,
   LoadingBlock,
-  MetricCard,
   PageHeader,
+  PanelHead,
   ServiceIcon,
+  Stat,
+  StatStrip,
 } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/errors";
 import { durationLabel, relativeTime } from "@/lib/format";
@@ -41,18 +35,71 @@ type Health = {
   };
 };
 
-const COLORS = {
-  joined: "#b9a3e6",
-  completed: "#8757db",
-  cancelled: "#e0a3ac",
-  skipped: "#efc089",
+const CHART = {
+  joined: "#b8c0d8",
+  completed: "#1b2340",
+  cancelled: "#b83b34",
+  skipped: "#8a5300",
+  axis: "#5a6283",
+  grid: "#e9ecf2",
 };
+
+/** Things an operator should look at now, derived from live catalogue and camera data. */
+function useAttention() {
+  const { pollInterval } = useRealtime();
+  const catalog = trpc.catalog.list.useQuery(undefined, {
+    refetchInterval: pollInterval,
+  });
+  const items: Array<{
+    key: string;
+    icon: typeof Pause;
+    title: string;
+    detail: string;
+    href: string;
+  }> = [];
+  catalog.data?.services.forEach(service =>
+    service.groups.forEach(group => {
+      group.counters.forEach(counter => {
+        if (counter.status === "OPEN") return;
+        items.push({
+          key: `c${counter.id}`,
+          icon: counter.status === "PAUSED" ? Pause : PowerOff,
+          title: `${counter.name} is ${counter.status.toLowerCase()}`,
+          detail: `${service.name}, ${group.name}. ${counter.statusReason ?? "No reason given"}${counter.waiting ? `. ${counter.waiting} still waiting` : ""}`,
+          href: `/staff/${counter.id}`,
+        });
+      });
+      if (group.traffic.effectiveLevel === "HEAVY") {
+        items.push({
+          key: `t${group.id}`,
+          icon: Gauge,
+          title: `Heavy traffic at ${group.name}`,
+          detail: `${service.name}. ${group.traffic.reason ?? (group.traffic.effectiveLevel !== group.traffic.staffLevel ? "Raised by camera" : "Set by staff")}`,
+          href: group.counters[0]
+            ? `/staff/${group.counters[0].id}`
+            : "/admin/queues",
+        });
+      }
+      if (group.camera && !group.camera.fresh) {
+        items.push({
+          key: `cam${group.id}`,
+          icon: CameraOff,
+          title: `Camera offline for ${group.name}`,
+          detail: `Last report ${relativeTime(group.camera.reportedAt)}. Estimates use queue data only.`,
+          href: "/camera",
+        });
+      }
+    })
+  );
+  return { items, loading: catalog.isLoading };
+}
 
 export default function AdminOverview() {
   const { pollInterval, state } = useRealtime();
   const overview = trpc.admin.overview.useQuery(undefined, {
     refetchInterval: pollInterval || 60_000,
   });
+  const attention = useAttention();
   const health = useQuery({
     queryKey: ["health"],
     queryFn: async (): Promise<Health> => (await fetch("/api/health")).json(),
@@ -84,127 +131,75 @@ export default function AdminOverview() {
   return (
     <>
       <PageHeader
-        eyebrow="Administration"
         title="Campus overview"
-        subtitle={`Live operational picture · updated ${relativeTime(o.generatedAt)}`}
+        subtitle={`Live picture of every queue. Updated ${relativeTime(o.generatedAt)}.`}
       />
-      <div className="admin-metrics">
-        <MetricCard
+
+      <StatStrip label="Right now">
+        <Stat
           label="Waiting now"
           value={o.live.waiting}
-          helper={`${o.live.inService} at counters · ${o.live.activeQueues} active queues`}
-          icon={Users}
-          accent="violet"
+          helper={`${o.live.inService} at counters, ${o.live.activeQueues} active queues`}
         />
-        <MetricCard
-          label="Counters"
-          value={`${o.live.countersOpen} open`}
-          helper={`${o.live.countersPaused} paused · ${o.live.countersOffline} offline`}
-          icon={Activity}
-          accent="blue"
+        <Stat
+          label="Counters open"
+          value={o.live.countersOpen}
+          helper={`${o.live.countersPaused} paused, ${o.live.countersOffline} offline`}
         />
-        <MetricCard
+        <Stat
+          label="Average wait today"
+          value={durationLabel(o.today.averageWaitSeconds)}
+          helper={`Service takes ${durationLabel(o.today.averageServiceSeconds)} on average`}
+        />
+        <Stat
           label="Completed today"
           value={o.today.completed}
-          helper={`${o.today.joined} tokens issued · ${o.today.priority} priority`}
-          icon={CheckCircle2}
-          accent="teal"
+          helper={`${o.today.joined} tokens issued, ${o.today.priority} with priority`}
         />
-        <MetricCard
-          label="Avg. wait today"
-          value={durationLabel(o.today.averageWaitSeconds)}
-          helper={`service ${durationLabel(o.today.averageServiceSeconds)} on average`}
-          icon={Clock3}
-          accent="orange"
-        />
-      </div>
-      <div className="admin-metrics">
-        <MetricCard
-          label="Students"
-          value={o.people.students}
-          helper={`${o.people.activeStudents} active · ${o.people.pendingStudents} not yet activated`}
-          icon={Users}
-          accent="violet"
-        />
-        <MetricCard
-          label="Staff"
-          value={o.people.staff}
-          helper={`${o.people.admins} administrator${o.people.admins === 1 ? "" : "s"}`}
-          icon={Users}
-          accent="blue"
-        />
-        <MetricCard
-          label="Cancelled / skipped"
-          value={`${o.today.cancelled} / ${o.today.skipped}`}
-          helper="today"
-          icon={XCircle}
-          accent="orange"
-        />
-        <MetricCard
-          label="Live connections"
-          value={o.live.realtimeConnections}
-          helper={`this dashboard: ${state}`}
-          icon={Radio}
-          accent="teal"
-        />
-      </div>
+      </StatStrip>
 
       <div className="admin-grid">
-        <section className="panel chart-panel" aria-labelledby="hourly-title">
-          <div className="card-heading compact">
-            <div>
-              <div className="eyebrow">Today</div>
-              <h3 id="hourly-title">Queue volume by hour</h3>
-            </div>
-          </div>
-          <div
-            className="chart-box"
-            role="img"
-            aria-label="Tokens issued and completed per hour today"
-          >
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={hourly}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#eee9f2"
-                />
-                <XAxis dataKey="hour" tick={{ fontSize: 11 }} />
-                <YAxis
-                  allowDecimals={false}
-                  width={30}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip />
-                <Legend />
-                <Bar
-                  dataKey="Joined"
-                  fill={COLORS.joined}
-                  radius={[4, 4, 0, 0]}
-                  isAnimationActive={false}
-                />
-                <Bar
-                  dataKey="Completed"
-                  fill={COLORS.completed}
-                  radius={[4, 4, 0, 0]}
-                  isAnimationActive={false}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <section className="panel" aria-labelledby="attention-title">
+          <PanelHead
+            id="attention-title"
+            title="Needs attention"
+            description="Counters that aren't open, heavy traffic and cameras that stopped reporting."
+          />
+          {attention.loading ? (
+            <LoadingBlock rows={1} />
+          ) : attention.items.length === 0 ? (
+            <p className="cell-with-icon success-text">
+              <CheckCircle2 size={18} aria-hidden /> Everything is running
+              normally.
+            </p>
+          ) : (
+            <ul className="attention-list">
+              {attention.items.map(item => {
+                const Icon = item.icon;
+                return (
+                  <li key={item.key}>
+                    <Icon size={18} aria-hidden />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <small>{item.detail}</small>
+                    </div>
+                    <Link
+                      href={item.href}
+                      className="button button-outline button-small"
+                    >
+                      Open
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
         <section className="panel" aria-labelledby="health-title">
-          <div className="card-heading compact">
-            <div>
-              <div className="eyebrow">System health</div>
-              <h3 id="health-title">Operational status</h3>
-            </div>
-          </div>
+          <PanelHead id="health-title" title="System health" />
           <dl className="status-list">
             <div>
-              <dt>
-                <Database size={14} aria-hidden /> Database
-              </dt>
+              <dt>Database</dt>
               <dd
                 className={
                   health.data?.checks.database === "up"
@@ -213,65 +208,58 @@ export default function AdminOverview() {
                 }
               >
                 {health.isLoading
-                  ? "Checking…"
+                  ? "Checking"
                   : health.data
-                    ? `${health.data.checks.database === "up" ? "Up" : "Down"} · ${health.data.checks.databaseLatencyMs} ms`
+                    ? `${health.data.checks.database === "up" ? "Up" : "Down"}, ${health.data.checks.databaseLatencyMs} ms`
                     : "Unreachable"}
               </dd>
             </div>
             <div>
-              <dt>
-                <Radio size={14} aria-hidden /> Realtime (SSE)
-              </dt>
+              <dt>Live updates</dt>
               <dd className={state === "live" ? "success-text" : "danger-text"}>
-                {state === "live" ? "Connected" : state}
+                {state === "live"
+                  ? `Connected, ${o.live.realtimeConnections} open`
+                  : state}
               </dd>
             </div>
             <div>
-              <dt>
-                <Timer size={14} aria-hidden /> API uptime
-              </dt>
+              <dt>Server uptime</dt>
               <dd>
-                {health.data ? durationLabel(health.data.uptimeSeconds) : "—"}
+                {health.data ? durationLabel(health.data.uptimeSeconds) : "–"}
               </dd>
             </div>
-            {o.cameras.map(camera => (
-              <div key={camera.id}>
-                <dt>{camera.name}</dt>
-                <dd className={camera.fresh ? "success-text" : "muted"}>
-                  {!camera.isActive
-                    ? "Inactive"
-                    : camera.fresh
-                      ? `${camera.lastPeopleCount ?? 0} people · ${relativeTime(camera.lastReportedAt)}`
-                      : camera.lastReportedAt
-                        ? `Stale · ${relativeTime(camera.lastReportedAt)}`
-                        : "Never reported"}
-                </dd>
-              </div>
-            ))}
+            <div>
+              <dt>Accounts</dt>
+              <dd>
+                {o.people.activeStudents} students active,{" "}
+                {o.people.pendingStudents} not activated
+              </dd>
+            </div>
+            <div>
+              <dt>Staff</dt>
+              <dd>
+                {o.people.staff} staff, {o.people.admins} admin
+                {o.people.admins === 1 ? "" : "s"}
+              </dd>
+            </div>
           </dl>
         </section>
       </div>
 
       <section className="panel" aria-labelledby="services-title">
-        <div className="card-heading compact">
-          <div>
-            <div className="eyebrow">Services</div>
-            <h3 id="services-title">Utilisation and outcomes today</h3>
-          </div>
-        </div>
+        <PanelHead id="services-title" title="Services today" />
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table stack">
             <thead>
               <tr>
                 <th scope="col">Service</th>
                 <th scope="col">Waiting</th>
-                <th scope="col">Counters busy</th>
+                <th scope="col">Open counters busy</th>
                 <th scope="col">Issued</th>
                 <th scope="col">Completed</th>
-                <th scope="col">Cancelled / skipped</th>
-                <th scope="col">Avg. wait</th>
-                <th scope="col">Avg. service</th>
+                <th scope="col">Cancelled, skipped</th>
+                <th scope="col">Average wait</th>
+                <th scope="col">Average service</th>
               </tr>
             </thead>
             <tbody>
@@ -279,31 +267,39 @@ export default function AdminOverview() {
                 <tr key={s.id}>
                   <th scope="row">
                     <span className="cell-with-icon">
-                      <ServiceIcon kind={s.kind} size={15} /> {s.name}
+                      <ServiceIcon kind={s.kind} /> <strong>{s.name}</strong>
                     </span>
                   </th>
-                  <td>{s.waiting}</td>
-                  <td>
-                    <span
-                      className="util-bar"
-                      aria-label={`${s.busyCounters} of ${s.openCounters} open counters busy`}
-                    >
+                  <td data-label="Waiting" className="num">
+                    {s.waiting}
+                  </td>
+                  <td data-label="Open counters busy" className="nowrap">
+                    <span className="util-bar" aria-hidden>
                       <span
                         style={{
                           width: `${s.openCounters ? (100 * s.busyCounters) / s.openCounters : 0}%`,
                         }}
                       />
                     </span>
-                    {s.busyCounters}/{s.openCounters}{" "}
-                    <small className="muted">({s.totalCounters} total)</small>
+                    <span className="num nowrap">
+                      {s.busyCounters} of {s.openCounters}
+                    </span>
                   </td>
-                  <td>{s.joinedToday}</td>
-                  <td>{s.completedToday}</td>
-                  <td>
-                    {s.cancelledToday} / {s.skippedToday}
+                  <td data-label="Issued" className="num">
+                    {s.joinedToday}
                   </td>
-                  <td>{durationLabel(s.averageWaitSeconds)}</td>
-                  <td>{durationLabel(s.averageServiceSeconds)}</td>
+                  <td data-label="Completed" className="num">
+                    {s.completedToday}
+                  </td>
+                  <td data-label="Cancelled, skipped" className="num">
+                    {s.cancelledToday}, {s.skippedToday}
+                  </td>
+                  <td data-label="Average wait">
+                    {durationLabel(s.averageWaitSeconds)}
+                  </td>
+                  <td data-label="Average service">
+                    {durationLabel(s.averageServiceSeconds)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -311,52 +307,87 @@ export default function AdminOverview() {
         </div>
       </section>
 
-      <section className="panel chart-panel" aria-labelledby="week-title">
-        <div className="card-heading compact">
-          <div>
-            <div className="eyebrow">Last 7 days</div>
-            <h3 id="week-title">Outcomes by day</h3>
+      <div className="admin-grid mt-4">
+        <section className="panel" aria-labelledby="hourly-title">
+          <PanelHead id="hourly-title" title="Tokens by hour today" as="h3" />
+          <div
+            className="chart-box"
+            role="img"
+            aria-label={`Tokens issued and completed per hour today. ${hourly.map(h => `${h.hour}: ${h.Joined} issued, ${h.Completed} completed`).join("; ")}`}
+          >
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={hourly}>
+                <CartesianGrid vertical={false} stroke={CHART.grid} />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 12, fill: CHART.axis }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  width={30}
+                  tick={{ fontSize: 12, fill: CHART.axis }}
+                />
+                <Tooltip />
+                <Legend />
+                <Bar
+                  dataKey="Joined"
+                  name="Issued"
+                  fill={CHART.joined}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="Completed"
+                  fill={CHART.completed}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
-        <div
-          className="chart-box"
-          role="img"
-          aria-label="Completed, cancelled and skipped tokens per day for the last week"
-        >
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={volume}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="#eee9f2"
-              />
-              <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} width={30} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend />
-              <Bar
-                dataKey="Completed"
-                stackId="a"
-                fill={COLORS.completed}
-                isAnimationActive={false}
-              />
-              <Bar
-                dataKey="Cancelled"
-                stackId="a"
-                fill={COLORS.cancelled}
-                isAnimationActive={false}
-              />
-              <Bar
-                dataKey="Skipped"
-                stackId="a"
-                fill={COLORS.skipped}
-                radius={[4, 4, 0, 0]}
-                isAnimationActive={false}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+        </section>
+        <section className="panel" aria-labelledby="week-title">
+          <PanelHead id="week-title" title="Outcomes, last 7 days" as="h3" />
+          <div
+            className="chart-box"
+            role="img"
+            aria-label={`Outcomes per day. ${volume.map(v => `${v.day}: ${v.Completed} completed, ${v.Cancelled} cancelled, ${v.Skipped} skipped`).join("; ")}`}
+          >
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={volume}>
+                <CartesianGrid vertical={false} stroke={CHART.grid} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 12, fill: CHART.axis }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  width={30}
+                  tick={{ fontSize: 12, fill: CHART.axis }}
+                />
+                <Tooltip />
+                <Legend />
+                <Bar
+                  dataKey="Completed"
+                  stackId="a"
+                  fill={CHART.completed}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="Cancelled"
+                  stackId="a"
+                  fill={CHART.cancelled}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="Skipped"
+                  stackId="a"
+                  fill={CHART.skipped}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      </div>
     </>
   );
 }

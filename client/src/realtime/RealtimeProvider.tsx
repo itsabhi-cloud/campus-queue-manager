@@ -121,10 +121,11 @@ export function RealtimeProvider({
           invalidate("notifications", "mine");
           // Joining already shows its own confirmation in the page that performed it.
           if (event.notificationType !== "QUEUE_JOINED") {
+            const called = event.notificationType === "TOKEN_CALLED";
             toast(event.title, {
               description: event.message,
-              duration:
-                event.notificationType === "TOKEN_CALLED" ? 20_000 : 7_000,
+              duration: called ? 20_000 : 7_000,
+              className: called ? "qs-toast qs-toast-called" : "qs-toast",
             });
           }
           showBrowserNotification(event.title, event.message);
