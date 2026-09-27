@@ -23,7 +23,11 @@ function createPool(url: string) {
 }
 
 export const pool = createPool(ENV.DATABASE_URL);
-export const db = drizzle(pool, { schema, mode: "default", casing: "snake_case" });
+export const db = drizzle(pool, {
+  schema,
+  mode: "default",
+  casing: "snake_case",
+});
 
 export type Database = typeof db;
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -57,15 +61,23 @@ export function isDuplicateKeyError(error: unknown, indexName?: string) {
  * Runs `work` in a transaction and transparently retries on deadlock / lock-wait timeout,
  * which InnoDB can raise under concurrent row locking. `work` must be idempotent up to its commit.
  */
-export async function withTransaction<T>(work: (tx: Tx) => Promise<T>, attempts = 4): Promise<T> {
+export async function withTransaction<T>(
+  work: (tx: Tx) => Promise<T>,
+  attempts = 4
+): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await db.transaction(work, { isolationLevel: "read committed" });
     } catch (error) {
       const code = mysqlCode(error);
       if (code && RETRYABLE.has(code) && attempt < attempts) {
-        logger.warn("Retrying transaction after lock conflict", { code, attempt });
-        await new Promise(resolve => setTimeout(resolve, 15 * attempt + Math.random() * 25));
+        logger.warn("Retrying transaction after lock conflict", {
+          code,
+          attempt,
+        });
+        await new Promise(resolve =>
+          setTimeout(resolve, 15 * attempt + Math.random() * 25)
+        );
         continue;
       }
       throw error;
@@ -73,7 +85,10 @@ export async function withTransaction<T>(work: (tx: Tx) => Promise<T>, attempts 
   }
 }
 
-export async function pingDatabase(): Promise<{ ok: boolean; latencyMs: number }> {
+export async function pingDatabase(): Promise<{
+  ok: boolean;
+  latencyMs: number;
+}> {
   const started = performance.now();
   try {
     await db.execute(sql`select 1`);

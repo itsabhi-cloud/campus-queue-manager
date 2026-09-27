@@ -7,17 +7,43 @@ export const ROLES = ["STUDENT", "STAFF", "ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 
 /** PENDING = provisioned by an admin but not yet activated (no password set). */
-export const ACCOUNT_STATUSES = ["PENDING", "ACTIVE", "SUSPENDED", "DISABLED"] as const;
+export const ACCOUNT_STATUSES = [
+  "PENDING",
+  "ACTIVE",
+  "SUSPENDED",
+  "DISABLED",
+] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 /** Used for icons and scope copy only — queue behaviour comes from queue-group configuration. */
-export const SERVICE_KINDS = ["ADMINISTRATION", "PRINTING", "CAFETERIA", "ELEVATOR", "OTHER"] as const;
+export const SERVICE_KINDS = [
+  "ADMINISTRATION",
+  "PRINTING",
+  "CAFETERIA",
+  "ELEVATOR",
+  "OTHER",
+] as const;
 export type ServiceKind = (typeof SERVICE_KINDS)[number];
 
-export const QUEUE_STATUSES = ["WAITING", "CALLED", "SERVING", "COMPLETED", "SKIPPED", "CANCELLED"] as const;
+export const QUEUE_STATUSES = [
+  "WAITING",
+  "CALLED",
+  "SERVING",
+  "COMPLETED",
+  "SKIPPED",
+  "CANCELLED",
+] as const;
 export type QueueStatus = (typeof QUEUE_STATUSES)[number];
-export const ACTIVE_QUEUE_STATUSES = ["WAITING", "CALLED", "SERVING"] as const satisfies readonly QueueStatus[];
-export const TERMINAL_QUEUE_STATUSES = ["COMPLETED", "SKIPPED", "CANCELLED"] as const satisfies readonly QueueStatus[];
+export const ACTIVE_QUEUE_STATUSES = [
+  "WAITING",
+  "CALLED",
+  "SERVING",
+] as const satisfies readonly QueueStatus[];
+export const TERMINAL_QUEUE_STATUSES = [
+  "COMPLETED",
+  "SKIPPED",
+  "CANCELLED",
+] as const satisfies readonly QueueStatus[];
 
 export const COUNTER_STATUSES = ["OPEN", "PAUSED", "OFFLINE"] as const;
 export type CounterStatus = (typeof COUNTER_STATUSES)[number];
@@ -82,9 +108,20 @@ export const isActiveStatus = (status: QueueStatus) =>
 /** Realtime events carry identifiers only; clients refetch authoritative state. */
 export type RealtimeEvent =
   | { type: "hello"; serverTime: number }
-  | { type: "queue.changed"; counterIds: number[]; queueGroupIds: number[]; reason: QueueEventType | "CONFIG" }
+  | {
+      type: "queue.changed";
+      counterIds: number[];
+      queueGroupIds: number[];
+      reason: QueueEventType | "CONFIG";
+    }
   | { type: "entry.changed"; entryIds: number[] }
-  | { type: "notification.created"; notificationId: number; title: string; message: string; notificationType: NotificationType }
+  | {
+      type: "notification.created";
+      notificationId: number;
+      title: string;
+      message: string;
+      notificationType: NotificationType;
+    }
   | { type: "camera.updated"; stationId: number; queueGroupId: number }
   | { type: "catalog.changed" }
   | { type: "session.revoked" };

@@ -18,7 +18,10 @@ class RealtimeBroker {
   }
 
   publish(audience: Audience, event: RealtimeEvent) {
-    this.emitter.emit(audience.kind === "all" ? "all" : `user:${audience.userId}`, event);
+    this.emitter.emit(
+      audience.kind === "all" ? "all" : `user:${audience.userId}`,
+      event
+    );
   }
 
   subscribe(userId: number, listener: Listener): () => void {

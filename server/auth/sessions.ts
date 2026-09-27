@@ -1,7 +1,11 @@
 import type { Request, Response } from "express";
 import { parse as parseCookies } from "cookie";
 import { and, eq, gt, lt } from "drizzle-orm";
-import { SESSION_COOKIE, type AccountStatus, type Role } from "../../shared/domain";
+import {
+  SESSION_COOKIE,
+  type AccountStatus,
+  type Role,
+} from "../../shared/domain";
 import { sessions, users } from "../../drizzle/schema";
 import { ENV, isProduction } from "../_core/env";
 import { db, type Executor } from "../db/client";
@@ -34,7 +38,11 @@ export function readSessionToken(req: Request): string | undefined {
   return token && token.length <= 128 ? token : undefined;
 }
 
-export async function createSession(userId: number, req: Request, res: Response) {
+export async function createSession(
+  userId: number,
+  req: Request,
+  res: Response
+) {
   const token = newSessionToken();
   const ttlMs = ENV.SESSION_TTL_HOURS * 3_600_000;
   await db.insert(sessions).values({
@@ -44,7 +52,10 @@ export async function createSession(userId: number, req: Request, res: Response)
     userAgent: (req.headers["user-agent"] ?? "").slice(0, 255) || null,
     ipAddress: (req.ip ?? "").slice(0, 64) || null,
   });
-  res.cookie(SESSION_COOKIE, token, { ...sessionCookieOptions(), maxAge: ttlMs });
+  res.cookie(SESSION_COOKIE, token, {
+    ...sessionCookieOptions(),
+    maxAge: ttlMs,
+  });
 }
 
 export function clearSessionCookie(res: Response) {
@@ -52,7 +63,9 @@ export function clearSessionCookie(res: Response) {
 }
 
 /** Resolves the cookie to an ACTIVE user. Expired or revoked sessions resolve to null. */
-export async function resolveSession(token: string | undefined): Promise<{ sessionId: string; user: SessionUser } | null> {
+export async function resolveSession(
+  token: string | undefined
+): Promise<{ sessionId: string; user: SessionUser } | null> {
   if (!token) return null;
   const sessionId = digest(token);
   const now = new Date();
@@ -72,11 +85,20 @@ export async function resolveSession(token: string | undefined): Promise<{ sessi
     .limit(1);
   if (!row || row.status !== "ACTIVE") return null;
   if (now.getTime() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
-    await db.update(sessions).set({ lastSeenAt: now }).where(eq(sessions.id, sessionId));
+    await db
+      .update(sessions)
+      .set({ lastSeenAt: now })
+      .where(eq(sessions.id, sessionId));
   }
   return {
     sessionId,
-    user: { id: row.id, email: row.email, name: row.name, role: row.role, status: row.status },
+    user: {
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      role: row.role,
+      status: row.status,
+    },
   };
 }
 

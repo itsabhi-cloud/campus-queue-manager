@@ -27,7 +27,13 @@ import {
 import type { SessionUser } from "../auth/sessions";
 import { fail } from "../_core/errors";
 import { logger } from "../_core/logger";
-import { db, isDuplicateKeyError, withTransaction, type Executor, type Tx } from "../db/client";
+import {
+  db,
+  isDuplicateKeyError,
+  withTransaction,
+  type Executor,
+  type Tx,
+} from "../db/client";
 import { audit } from "../lib/audit";
 import { Effects } from "../lib/effects";
 import { getSettings } from "../lib/settings";
@@ -43,7 +49,12 @@ import {
   trafficFromCount,
   type EstimateBreakdown,
 } from "./estimation";
-import { aheadText, almostNextMessage, calledMessage, counterStatusMessage } from "./messages";
+import {
+  aheadText,
+  almostNextMessage,
+  calledMessage,
+  counterStatusMessage,
+} from "./messages";
 import { loadPreferences, notify, type NotificationInput } from "./notify";
 import { mergeLines, orderWaiting } from "./ordering";
 import { canTransition, STATUS_TIMESTAMP } from "./stateMachine";
@@ -69,12 +80,20 @@ async function runOp<T>(work: (tx: Tx, fx: Effects) => Promise<T>): Promise<T> {
 }
 
 async function lockCounter(tx: Tx, counterId: number): Promise<Counter> {
-  const [counter] = await tx.select().from(counters).where(eq(counters.id, counterId)).for("update");
-  if (!counter || !counter.isActive) fail("NOT_FOUND", "That counter doesn't exist.");
+  const [counter] = await tx
+    .select()
+    .from(counters)
+    .where(eq(counters.id, counterId))
+    .for("update");
+  if (!counter || !counter.isActive)
+    fail("NOT_FOUND", "That counter doesn't exist.");
   return counter;
 }
 
-async function loadGroupContext(executor: Executor, queueGroupId: number): Promise<{ group: QueueGroup; service: Service }> {
+async function loadGroupContext(
+  executor: Executor,
+  queueGroupId: number
+): Promise<{ group: QueueGroup; service: Service }> {
   const [row] = await executor
     .select({ group: queueGroups, service: services })
     .from(queueGroups)
@@ -85,12 +104,20 @@ async function loadGroupContext(executor: Executor, queueGroupId: number): Promi
   return row;
 }
 
-async function activeAtCounters(executor: Executor, counterIds: number[]): Promise<QueueEntry[]> {
+async function activeAtCounters(
+  executor: Executor,
+  counterIds: number[]
+): Promise<QueueEntry[]> {
   if (counterIds.length === 0) return [];
   return executor
     .select()
     .from(queueEntries)
-    .where(and(inArray(queueEntries.counterId, counterIds), inArray(queueEntries.status, ACTIVE)));
+    .where(
+      and(
+        inArray(queueEntries.counterId, counterIds),
+        inArray(queueEntries.status, ACTIVE)
+      )
+    );
 }
 
 async function recordEvent(
@@ -147,16 +174,31 @@ async function transition(
   metadata: Record<string, unknown> = {}
 ) {
   if (!canTransition(entry.status, to)) {
-    fail("INVALID_TRANSITION", `Token ${entry.tokenNumber} is ${entry.status.toLowerCase()} and can't be ${VERB[to]}.`);
+    fail(
+      "INVALID_TRANSITION",
+      `Token ${entry.tokenNumber} is ${entry.status.toLowerCase()} and can't be ${VERB[to]}.`
+    );
   }
-  const stampColumn = to in STATUS_TIMESTAMP ? STATUS_TIMESTAMP[to as keyof typeof STATUS_TIMESTAMP] : null;
-  const patch: Partial<typeof queueEntries.$inferInsert> = { status: to, ...extra };
+  const stampColumn =
+    to in STATUS_TIMESTAMP
+      ? STATUS_TIMESTAMP[to as keyof typeof STATUS_TIMESTAMP]
+      : null;
+  const patch: Partial<typeof queueEntries.$inferInsert> = {
+    status: to,
+    ...extra,
+  };
   if (stampColumn) patch[stampColumn] = now;
   const [result] = await tx
     .update(queueEntries)
     .set(patch)
-    .where(and(eq(queueEntries.id, entry.id), eq(queueEntries.status, entry.status)));
-  if (result.affectedRows !== 1) fail("CONFLICT", "This token was just updated by someone else. Refresh and try again.");
+    .where(
+      and(eq(queueEntries.id, entry.id), eq(queueEntries.status, entry.status))
+    );
+  if (result.affectedRows !== 1)
+    fail(
+      "CONFLICT",
+      "This token was just updated by someone else. Refresh and try again."
+    );
   await recordEvent(tx, {
     type: EVENT_FOR_STATUS[to],
     entryId: entry.id,
@@ -173,30 +215,67 @@ async function transition(
 // Estimation inputs
 // ---------------------------------------------------------------------------
 
-export type CameraSignal = { peopleCount: number; level: TrafficLevel; reportedAt: Date; fresh: boolean } | null;
+export type CameraSignal = {
+  peopleCount: number;
+  level: TrafficLevel;
+  reportedAt: Date;
+  fresh: boolean;
+} | null;
 
-export async function cameraSignalForGroup(executor: Executor, group: QueueGroup, now: Date): Promise<CameraSignal> {
+export async function cameraSignalForGroup(
+  executor: Executor,
+  group: QueueGroup,
+  now: Date
+): Promise<CameraSignal> {
   const stations = await executor
-    .select({ lastReportedAt: cameraStations.lastReportedAt, lastPeopleCount: cameraStations.lastPeopleCount })
+    .select({
+      lastReportedAt: cameraStations.lastReportedAt,
+      lastPeopleCount: cameraStations.lastPeopleCount,
+    })
     .from(cameraStations)
-    .where(and(eq(cameraStations.queueGroupId, group.id), eq(cameraStations.isActive, true), isNotNull(cameraStations.lastReportedAt)));
+    .where(
+      and(
+        eq(cameraStations.queueGroupId, group.id),
+        eq(cameraStations.isActive, true),
+        isNotNull(cameraStations.lastReportedAt)
+      )
+    );
   if (stations.length === 0) return null;
   const { cameraStaleSeconds } = await getSettings();
-  const latest = stations.reduce((a, b) => ((a.lastReportedAt?.getTime() ?? 0) >= (b.lastReportedAt?.getTime() ?? 0) ? a : b));
-  const fresh = stations.filter(s => s.lastReportedAt && now.getTime() - s.lastReportedAt.getTime() <= cameraStaleSeconds * 1000);
+  const latest = stations.reduce((a, b) =>
+    (a.lastReportedAt?.getTime() ?? 0) >= (b.lastReportedAt?.getTime() ?? 0)
+      ? a
+      : b
+  );
+  const fresh = stations.filter(
+    s =>
+      s.lastReportedAt &&
+      now.getTime() - s.lastReportedAt.getTime() <= cameraStaleSeconds * 1000
+  );
   const source = fresh.length > 0 ? fresh : [latest];
   const peopleCount = Math.max(...source.map(s => s.lastPeopleCount ?? 0));
   return {
     peopleCount,
-    level: trafficFromCount(peopleCount, group.cameraModerateAt, group.cameraHeavyAt),
+    level: trafficFromCount(
+      peopleCount,
+      group.cameraModerateAt,
+      group.cameraHeavyAt
+    ),
     reportedAt: latest.lastReportedAt!,
     fresh: fresh.length > 0,
   };
 }
 
-async function observedServiceSeconds(executor: Executor, queueGroupId: number, now: Date): Promise<number[]> {
+async function observedServiceSeconds(
+  executor: Executor,
+  queueGroupId: number,
+  now: Date
+): Promise<number[]> {
   const rows = await executor
-    .select({ servingAt: queueEntries.servingAt, completedAt: queueEntries.completedAt })
+    .select({
+      servingAt: queueEntries.servingAt,
+      completedAt: queueEntries.completedAt,
+    })
     .from(queueEntries)
     .where(
       and(
@@ -221,7 +300,11 @@ export type GroupParams = {
   camera: CameraSignal;
 };
 
-export async function groupParams(executor: Executor, group: QueueGroup, now: Date): Promise<GroupParams> {
+export async function groupParams(
+  executor: Executor,
+  group: QueueGroup,
+  now: Date
+): Promise<GroupParams> {
   const observed = await observedServiceSeconds(executor, group.id, now);
   const camera = await cameraSignalForGroup(executor, group, now);
   return {
@@ -229,19 +312,32 @@ export async function groupParams(executor: Executor, group: QueueGroup, now: Da
     configuredSeconds: group.averageServiceSeconds,
     observedSamples: observed.length,
     staffTraffic: group.trafficLevel,
-    traffic: effectiveTraffic(group.trafficLevel, group.cameraAssist && camera?.fresh ? camera.level : null),
+    traffic: effectiveTraffic(
+      group.trafficLevel,
+      group.cameraAssist && camera?.fresh ? camera.level : null
+    ),
     camera,
   };
 }
 
-export function inProgressElapsed(active: QueueEntry[], now: Date): number | null {
+export function inProgressElapsed(
+  active: QueueEntry[],
+  now: Date
+): number | null {
   const started = active
     .filter(entry => IN_PROGRESS.includes(entry.status))
     .map(entry => (entry.servingAt ?? entry.calledAt ?? now).getTime());
-  return started.length ? Math.max(0, (now.getTime() - Math.min(...started)) / 1000) : null;
+  return started.length
+    ? Math.max(0, (now.getTime() - Math.min(...started)) / 1000)
+    : null;
 }
 
-export function estimateFor(group: QueueGroup, params: GroupParams, peopleAhead: number, elapsed: number | null): EstimateBreakdown {
+export function estimateFor(
+  group: QueueGroup,
+  params: GroupParams,
+  peopleAhead: number,
+  elapsed: number | null
+): EstimateBreakdown {
   return estimateWait({
     peopleAhead,
     serviceSeconds: params.serviceSeconds,
@@ -252,8 +348,15 @@ export function estimateFor(group: QueueGroup, params: GroupParams, peopleAhead:
   });
 }
 
-export function remainingSeconds(estimateSeconds: number, estimateAt: Date, now: Date) {
-  return Math.max(0, Math.round(estimateSeconds - (now.getTime() - estimateAt.getTime()) / 1000));
+export function remainingSeconds(
+  estimateSeconds: number,
+  estimateAt: Date,
+  now: Date
+) {
+  return Math.max(
+    0,
+    Math.round(estimateSeconds - (now.getTime() - estimateAt.getTime()) / 1000)
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -270,9 +373,15 @@ export type LinePosition = {
 };
 export type LineState = Map<number, LinePosition>;
 
-export async function snapshotLine(executor: Executor, counterId: number, now: Date): Promise<LineState> {
+export async function snapshotLine(
+  executor: Executor,
+  counterId: number,
+  now: Date
+): Promise<LineState> {
   const active = await activeAtCounters(executor, [counterId]);
-  const waiting = orderWaiting(active.filter(entry => entry.status === "WAITING"));
+  const waiting = orderWaiting(
+    active.filter(entry => entry.status === "WAITING")
+  );
   return new Map(
     waiting.map((entry, index) => [
       entry.id,
@@ -282,7 +391,11 @@ export async function snapshotLine(executor: Executor, counterId: number, now: D
         tokenNumber: entry.tokenNumber,
         position: index + 1,
         peopleAhead: index,
-        remainingSeconds: remainingSeconds(entry.estimatedWaitSeconds, entry.estimateUpdatedAt, now),
+        remainingSeconds: remainingSeconds(
+          entry.estimatedWaitSeconds,
+          entry.estimateUpdatedAt,
+          now
+        ),
       },
     ])
   );
@@ -299,12 +412,18 @@ export async function recalculateCounter(
   now: Date,
   options: { quietAlmostNextFor?: number } = {}
 ): Promise<LineState> {
-  const [counter] = await tx.select().from(counters).where(eq(counters.id, counterId)).limit(1);
+  const [counter] = await tx
+    .select()
+    .from(counters)
+    .where(eq(counters.id, counterId))
+    .limit(1);
   const { group, service } = await loadGroupContext(tx, counter.queueGroupId);
   const params = await groupParams(tx, group, now);
   const active = await activeAtCounters(tx, [counterId]);
   const elapsed = inProgressElapsed(active, now);
-  const waiting = orderWaiting(active.filter(entry => entry.status === "WAITING"));
+  const waiting = orderWaiting(
+    active.filter(entry => entry.status === "WAITING")
+  );
   const prefs = await loadPreferences(
     tx,
     waiting.map(entry => entry.userId)
@@ -317,28 +436,51 @@ export async function recalculateCounter(
     const patch: Partial<typeof queueEntries.$inferInsert> = {};
     let seconds = entry.estimatedWaitSeconds;
     let at = entry.estimateUpdatedAt;
-    if (shouldRefreshEstimate(entry.estimatedWaitSeconds, entry.estimateUpdatedAt, estimate.seconds, now)) {
+    if (
+      shouldRefreshEstimate(
+        entry.estimatedWaitSeconds,
+        entry.estimateUpdatedAt,
+        estimate.seconds,
+        now
+      )
+    ) {
       patch.estimatedWaitSeconds = estimate.seconds;
       patch.estimateUpdatedAt = now;
       seconds = estimate.seconds;
       at = now;
     }
     const threshold = prefs.get(entry.userId)?.almostNextThreshold ?? 2;
-    if (!entry.almostNextNotifiedAt && index <= threshold && counter.status === "OPEN") {
+    if (
+      !entry.almostNextNotifiedAt &&
+      index <= threshold &&
+      counter.status === "OPEN"
+    ) {
       patch.almostNextNotifiedAt = now;
       if (options.quietAlmostNextFor !== entry.id) {
         alerts.push({
           userId: entry.userId,
           type: "ALMOST_NEXT",
-          title: index === 0 ? `You're next: ${entry.tokenNumber}` : `Almost your turn: ${entry.tokenNumber}`,
-          message: almostNextMessage(service.kind, entry.tokenNumber, counter.name, index, group.unitLabel),
+          title:
+            index === 0
+              ? `You're next: ${entry.tokenNumber}`
+              : `Almost your turn: ${entry.tokenNumber}`,
+          message: almostNextMessage(
+            service.kind,
+            entry.tokenNumber,
+            counter.name,
+            index,
+            group.unitLabel
+          ),
           queueEntryId: entry.id,
           tokenNumber: entry.tokenNumber,
         });
       }
     }
     if (Object.keys(patch).length > 0) {
-      await tx.update(queueEntries).set(patch).where(eq(queueEntries.id, entry.id));
+      await tx
+        .update(queueEntries)
+        .set(patch)
+        .where(eq(queueEntries.id, entry.id));
       fx.entryChanged(entry.userId, entry.id);
     }
     line.set(entry.id, {
@@ -355,18 +497,30 @@ export async function recalculateCounter(
 }
 
 /** Notifies students whose estimate moved meaningfully between two snapshots. */
-async function notifyWaitChanges(tx: Tx, fx: Effects, before: LineState, after: LineState, cause: { up: string; down: string }) {
+async function notifyWaitChanges(
+  tx: Tx,
+  fx: Effects,
+  before: LineState,
+  after: LineState,
+  cause: { up: string; down: string }
+) {
   const inputs: NotificationInput[] = [];
   after.forEach(next => {
     const prev = before.get(next.entryId);
-    if (!prev || !isMeaningfulWaitChange(prev.remainingSeconds, next.remainingSeconds)) return;
+    if (
+      !prev ||
+      !isMeaningfulWaitChange(prev.remainingSeconds, next.remainingSeconds)
+    )
+      return;
     const increased = next.remainingSeconds > prev.remainingSeconds;
     const from = Math.max(1, Math.round(prev.remainingSeconds / 60));
     const to = Math.max(1, Math.round(next.remainingSeconds / 60));
     inputs.push({
       userId: next.userId,
       type: increased ? "WAIT_INCREASED" : "WAIT_DECREASED",
-      title: increased ? `Wait increased · ${next.tokenNumber}` : `Wait decreased · ${next.tokenNumber}`,
+      title: increased
+        ? `Wait increased · ${next.tokenNumber}`
+        : `Wait decreased · ${next.tokenNumber}`,
       message: `Estimated wait ${increased ? "increased" : "decreased"} from ${from} to ${to} minutes ${increased ? cause.up : cause.down}.`,
       queueEntryId: next.entryId,
       tokenNumber: next.tokenNumber,
@@ -389,24 +543,46 @@ export type JoinResult = {
   estimatedWaitSeconds: number;
 };
 
-export async function joinQueue(actor: Actor, input: { queueGroupId: number; counterId?: number }): Promise<JoinResult> {
+export async function joinQueue(
+  actor: Actor,
+  input: { queueGroupId: number; counterId?: number }
+): Promise<JoinResult> {
   const settings = await getSettings();
   return runOp(async (tx, fx) => {
     const now = new Date();
     // Serialise this student's joins so the active-token limit cannot be raced.
-    await tx.select({ id: users.id }).from(users).where(eq(users.id, actor.id)).for("update");
+    await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, actor.id))
+      .for("update");
 
     const { group, service } = await loadGroupContext(tx, input.queueGroupId);
     if (!service.isActive || !group.isActive) {
-      fail("SERVICE_UNAVAILABLE", `${group.name} isn't accepting tokens right now.`);
+      fail(
+        "SERVICE_UNAVAILABLE",
+        `${group.name} isn't accepting tokens right now.`
+      );
     }
 
     const mine = await tx
-      .select({ queueGroupId: queueEntries.queueGroupId, tokenNumber: queueEntries.tokenNumber })
+      .select({
+        queueGroupId: queueEntries.queueGroupId,
+        tokenNumber: queueEntries.tokenNumber,
+      })
       .from(queueEntries)
-      .where(and(eq(queueEntries.userId, actor.id), inArray(queueEntries.status, ACTIVE)));
+      .where(
+        and(
+          eq(queueEntries.userId, actor.id),
+          inArray(queueEntries.status, ACTIVE)
+        )
+      );
     const existing = mine.find(entry => entry.queueGroupId === group.id);
-    if (existing) fail("DUPLICATE_ACTIVE_TOKEN", `You already hold token ${existing.tokenNumber} in ${group.name}.`);
+    if (existing)
+      fail(
+        "DUPLICATE_ACTIVE_TOKEN",
+        `You already hold token ${existing.tokenNumber} in ${group.name}.`
+      );
     if (mine.length >= settings.maxActiveTokensPerStudent) {
       fail(
         "TOO_MANY_ACTIVE_TOKENS",
@@ -417,10 +593,14 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
     const groupCounters = await tx
       .select()
       .from(counters)
-      .where(and(eq(counters.queueGroupId, group.id), eq(counters.isActive, true)));
+      .where(
+        and(eq(counters.queueGroupId, group.id), eq(counters.isActive, true))
+      );
     let chosenId: number;
     if (input.counterId) {
-      const chosen = groupCounters.find(counter => counter.id === input.counterId);
+      const chosen = groupCounters.find(
+        counter => counter.id === input.counterId
+      );
       if (!chosen) fail("NOT_FOUND", "That counter isn't part of this queue.");
       if (chosen.status !== "OPEN") {
         fail(
@@ -433,25 +613,55 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
       chosenId = chosen.id;
     } else {
       const open = groupCounters.filter(counter => counter.status === "OPEN");
-      if (open.length === 0) fail("COUNTER_UNAVAILABLE", `No ${group.name} counter is open right now.`);
+      if (open.length === 0)
+        fail(
+          "COUNTER_UNAVAILABLE",
+          `No ${group.name} counter is open right now.`
+        );
       const waitingCounts = await tx
         .select({ counterId: queueEntries.counterId, waiting: count() })
         .from(queueEntries)
-        .where(and(inArray(queueEntries.counterId, open.map(c => c.id)), eq(queueEntries.status, "WAITING")))
+        .where(
+          and(
+            inArray(
+              queueEntries.counterId,
+              open.map(c => c.id)
+            ),
+            eq(queueEntries.status, "WAITING")
+          )
+        )
         .groupBy(queueEntries.counterId);
-      const waitingOf = (id: number) => waitingCounts.find(row => row.counterId === id)?.waiting ?? 0;
-      chosenId = [...open].sort((a, b) => waitingOf(a.id) - waitingOf(b.id) || a.displayOrder - b.displayOrder || a.id - b.id)[0].id;
+      const waitingOf = (id: number) =>
+        waitingCounts.find(row => row.counterId === id)?.waiting ?? 0;
+      chosenId = [...open].sort(
+        (a, b) =>
+          waitingOf(a.id) - waitingOf(b.id) ||
+          a.displayOrder - b.displayOrder ||
+          a.id - b.id
+      )[0].id;
     }
 
     const counter = await lockCounter(tx, chosenId);
-    if (counter.status !== "OPEN") fail("COUNTER_UNAVAILABLE", `${counter.name} just became unavailable. Please try again.`);
+    if (counter.status !== "OPEN")
+      fail(
+        "COUNTER_UNAVAILABLE",
+        `${counter.name} just became unavailable. Please try again.`
+      );
 
     const [{ waiting }] = await tx
       .select({ waiting: count() })
       .from(queueEntries)
-      .where(and(eq(queueEntries.counterId, counter.id), eq(queueEntries.status, "WAITING")));
+      .where(
+        and(
+          eq(queueEntries.counterId, counter.id),
+          eq(queueEntries.status, "WAITING")
+        )
+      );
     if (waiting >= group.maxWaiting) {
-      fail("QUEUE_FULL", `${counter.name} has reached its limit of ${group.maxWaiting} waiting. Please try again shortly.`);
+      fail(
+        "QUEUE_FULL",
+        `${counter.name} has reached its limit of ${group.maxWaiting} waiting. Please try again shortly.`
+      );
     }
 
     const today = campusDate(now);
@@ -459,7 +669,11 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
     const tokenNumber = `${counter.tokenPrefix}${String(sequence).padStart(3, "0")}`;
     await tx
       .update(counters)
-      .set({ nextSequence: sequence + 1, sequenceDate: today, nextOrderKey: counter.nextOrderKey + 1 })
+      .set({
+        nextSequence: sequence + 1,
+        sequenceDate: today,
+        nextOrderKey: counter.nextOrderKey + 1,
+      })
       .where(eq(counters.id, counter.id));
 
     let entryId: number;
@@ -484,7 +698,10 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
       entryId = row.id;
     } catch (error) {
       if (isDuplicateKeyError(error, "queue_entries_one_active_per_group")) {
-        fail("DUPLICATE_ACTIVE_TOKEN", `You already hold a token in ${group.name}.`);
+        fail(
+          "DUPLICATE_ACTIVE_TOKEN",
+          `You already hold a token in ${group.name}.`
+        );
       }
       throw error;
     }
@@ -496,10 +713,15 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
       groupId: group.id,
       actorUserId: actor.id,
       toStatus: "WAITING",
-      metadata: { tokenNumber, assignment: input.counterId ? "chosen" : "shortest-line" },
+      metadata: {
+        tokenNumber,
+        assignment: input.counterId ? "chosen" : "shortest-line",
+      },
     });
 
-    const line = await recalculateCounter(tx, fx, counter.id, now, { quietAlmostNextFor: entryId });
+    const line = await recalculateCounter(tx, fx, counter.id, now, {
+      quietAlmostNextFor: entryId,
+    });
     const me = line.get(entryId)!;
     await notify(tx, fx, [
       {
@@ -526,26 +748,52 @@ export async function joinQueue(actor: Actor, input: { queueGroupId: number; cou
 }
 
 /** Locks the entry's current counter and re-reads the entry (a merge may have moved it). */
-async function lockEntry(tx: Tx, entryId: number): Promise<{ entry: QueueEntry; counter: Counter }> {
+async function lockEntry(
+  tx: Tx,
+  entryId: number
+): Promise<{ entry: QueueEntry; counter: Counter }> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const [peek] = await tx.select().from(queueEntries).where(eq(queueEntries.id, entryId)).limit(1);
+    const [peek] = await tx
+      .select()
+      .from(queueEntries)
+      .where(eq(queueEntries.id, entryId))
+      .limit(1);
     if (!peek) fail("NOT_FOUND", "That token doesn't exist.");
     const counter = await lockCounter(tx, peek.counterId);
-    const [entry] = await tx.select().from(queueEntries).where(eq(queueEntries.id, entryId)).limit(1);
+    const [entry] = await tx
+      .select()
+      .from(queueEntries)
+      .where(eq(queueEntries.id, entryId))
+      .limit(1);
     if (entry.counterId === counter.id) return { entry, counter };
   }
-  fail("CONFLICT", "This token was just moved to another counter. Refresh and try again.");
+  fail(
+    "CONFLICT",
+    "This token was just moved to another counter. Refresh and try again."
+  );
 }
 
 export async function cancelOwnEntry(actor: Actor, entryId: number) {
   return runOp(async (tx, fx) => {
     const now = new Date();
-    const [peek] = await tx.select({ userId: queueEntries.userId }).from(queueEntries).where(eq(queueEntries.id, entryId)).limit(1);
+    const [peek] = await tx
+      .select({ userId: queueEntries.userId })
+      .from(queueEntries)
+      .where(eq(queueEntries.id, entryId))
+      .limit(1);
     // Do not reveal whether someone else's token exists.
-    if (!peek || peek.userId !== actor.id) fail("NOT_FOUND", "That token doesn't exist.");
+    if (!peek || peek.userId !== actor.id)
+      fail("NOT_FOUND", "That token doesn't exist.");
     const { entry, counter } = await lockEntry(tx, entryId);
-    if (entry.status === "SERVING") fail("INVALID_TRANSITION", "You're already being served, so this token can't be cancelled.");
-    await transition(tx, entry, "CANCELLED", actor.id, now, { closedReason: "Cancelled by student", closedByUserId: actor.id });
+    if (entry.status === "SERVING")
+      fail(
+        "INVALID_TRANSITION",
+        "You're already being served, so this token can't be cancelled."
+      );
+    await transition(tx, entry, "CANCELLED", actor.id, now, {
+      closedReason: "Cancelled by student",
+      closedByUserId: actor.id,
+    });
     await recalculateCounter(tx, fx, counter.id, now);
     fx.queueChanged([counter.id], [entry.queueGroupId], "CANCELLED");
     fx.entryChanged(actor.id, entry.id);
@@ -563,11 +811,16 @@ export async function callNext(actor: Actor, counterId: number) {
     await assertCounterAccess(tx, actor, counterId);
     const counter = await lockCounter(tx, counterId);
     if (counter.status !== "OPEN") {
-      fail("COUNTER_UNAVAILABLE", `${counter.name} is ${counter.status.toLowerCase()}. Resume it before calling tokens.`);
+      fail(
+        "COUNTER_UNAVAILABLE",
+        `${counter.name} is ${counter.status.toLowerCase()}. Resume it before calling tokens.`
+      );
     }
     const { group, service } = await loadGroupContext(tx, counter.queueGroupId);
     const active = await activeAtCounters(tx, [counterId]);
-    const inProgress = active.filter(entry => IN_PROGRESS.includes(entry.status));
+    const inProgress = active.filter(entry =>
+      IN_PROGRESS.includes(entry.status)
+    );
     const slots = group.serveCapacity - inProgress.length;
     if (slots <= 0) {
       fail(
@@ -577,8 +830,11 @@ export async function callNext(actor: Actor, counterId: number) {
           : `This counter already has a full batch of ${group.serveCapacity} in progress.`
       );
     }
-    const next = orderWaiting(active.filter(entry => entry.status === "WAITING")).slice(0, slots);
-    if (next.length === 0) fail("NOT_FOUND", "No one is waiting at this counter.");
+    const next = orderWaiting(
+      active.filter(entry => entry.status === "WAITING")
+    ).slice(0, slots);
+    if (next.length === 0)
+      fail("NOT_FOUND", "No one is waiting at this counter.");
 
     for (const entry of next) {
       await transition(tx, entry, "CALLED", actor.id, now);
@@ -598,7 +854,12 @@ export async function callNext(actor: Actor, counterId: number) {
     );
     await recalculateCounter(tx, fx, counterId, now);
     fx.queueChanged([counterId], [group.id], "CALLED");
-    return { called: next.map(entry => ({ id: entry.id, tokenNumber: entry.tokenNumber })) };
+    return {
+      called: next.map(entry => ({
+        id: entry.id,
+        tokenNumber: entry.tokenNumber,
+      })),
+    };
   });
 }
 
@@ -612,20 +873,36 @@ const ACTION_TARGET: Record<EntryAction, QueueStatus> = {
 };
 
 /** Serve / complete / skip / cancel one or more tokens at a single counter. */
-export async function actOnEntries(actor: Actor, input: { entryIds: number[]; action: EntryAction; reason?: string }, meta: Meta = {}) {
+export async function actOnEntries(
+  actor: Actor,
+  input: { entryIds: number[]; action: EntryAction; reason?: string },
+  meta: Meta = {}
+) {
   const ids = [...new Set(input.entryIds)];
-  if (input.action === "CANCEL" && !input.reason?.trim()) fail("VALIDATION", "Please give a reason for cancelling.");
+  if (input.action === "CANCEL" && !input.reason?.trim())
+    fail("VALIDATION", "Please give a reason for cancelling.");
   return runOp(async (tx, fx) => {
     const now = new Date();
     const first = await lockEntry(tx, ids[0]);
     await assertCounterAccess(tx, actor, first.counter.id);
-    const { group, service } = await loadGroupContext(tx, first.counter.queueGroupId);
+    const { group, service } = await loadGroupContext(
+      tx,
+      first.counter.queueGroupId
+    );
     const to = ACTION_TARGET[input.action];
     const results: Array<{ id: number; tokenNumber: string }> = [];
     const alerts: NotificationInput[] = [];
     for (const id of ids) {
-      const [entry] = await tx.select().from(queueEntries).where(eq(queueEntries.id, id)).limit(1);
-      if (!entry || entry.counterId !== first.counter.id) fail("VALIDATION", "All selected tokens must belong to the same counter.");
+      const [entry] = await tx
+        .select()
+        .from(queueEntries)
+        .where(eq(queueEntries.id, id))
+        .limit(1);
+      if (!entry || entry.counterId !== first.counter.id)
+        fail(
+          "VALIDATION",
+          "All selected tokens must belong to the same counter."
+        );
       const reason = input.reason?.trim() || null;
       await transition(
         tx,
@@ -633,7 +910,9 @@ export async function actOnEntries(actor: Actor, input: { entryIds: number[]; ac
         to,
         actor.id,
         now,
-        to === "SKIPPED" || to === "CANCELLED" ? { closedReason: reason, closedByUserId: actor.id } : {},
+        to === "SKIPPED" || to === "CANCELLED"
+          ? { closedReason: reason, closedByUserId: actor.id }
+          : {},
         reason ? { reason } : {}
       );
       fx.entryChanged(entry.userId, entry.id);
@@ -644,7 +923,10 @@ export async function actOnEntries(actor: Actor, input: { entryIds: number[]; ac
           userId: entry.userId,
           type: "SERVICE_STARTED",
           title: `Now serving ${entry.tokenNumber}`,
-          message: service.kind === "ELEVATOR" ? `Boarding ${counterName} with token ${entry.tokenNumber}.` : `${counterName} is now serving token ${entry.tokenNumber}.`,
+          message:
+            service.kind === "ELEVATOR"
+              ? `Boarding ${counterName} with token ${entry.tokenNumber}.`
+              : `${counterName} is now serving token ${entry.tokenNumber}.`,
           queueEntryId: entry.id,
           tokenNumber: entry.tokenNumber,
         });
@@ -684,7 +966,10 @@ export async function actOnEntries(actor: Actor, input: { entryIds: number[]; ac
         action: "queue.token_cancelled",
         entityType: "queue_entry",
         entityId: ids.join(","),
-        metadata: { reason: input.reason, tokens: results.map(r => r.tokenNumber) },
+        metadata: {
+          reason: input.reason,
+          tokens: results.map(r => r.tokenNumber),
+        },
         ip: meta.ip,
       });
     }
@@ -694,24 +979,48 @@ export async function actOnEntries(actor: Actor, input: { entryIds: number[]; ac
   });
 }
 
-export async function setPriority(actor: Actor, input: { entryId: number; enabled: boolean; reason: string }, meta: Meta = {}) {
+export async function setPriority(
+  actor: Actor,
+  input: { entryId: number; enabled: boolean; reason: string },
+  meta: Meta = {}
+) {
   const reason = input.reason.trim();
-  if (reason.length < 3) fail("VALIDATION", "A reason of at least 3 characters is required.");
+  if (reason.length < 3)
+    fail("VALIDATION", "A reason of at least 3 characters is required.");
   return runOp(async (tx, fx) => {
     const now = new Date();
     const { entry, counter } = await lockEntry(tx, input.entryId);
     await assertCounterAccess(tx, actor, counter.id);
-    if (entry.status !== "WAITING") fail("INVALID_TRANSITION", `Only waiting tokens can have their priority changed; ${entry.tokenNumber} is ${entry.status.toLowerCase()}.`);
+    if (entry.status !== "WAITING")
+      fail(
+        "INVALID_TRANSITION",
+        `Only waiting tokens can have their priority changed; ${entry.tokenNumber} is ${entry.status.toLowerCase()}.`
+      );
     if (entry.isPriority === input.enabled) {
-      fail("CONFLICT", input.enabled ? `${entry.tokenNumber} already has priority.` : `${entry.tokenNumber} doesn't have priority.`);
+      fail(
+        "CONFLICT",
+        input.enabled
+          ? `${entry.tokenNumber} already has priority.`
+          : `${entry.tokenNumber} doesn't have priority.`
+      );
     }
     const before = await snapshotLine(tx, counter.id, now);
     await tx
       .update(queueEntries)
       .set(
         input.enabled
-          ? { isPriority: true, priorityAt: now, priorityReason: reason, priorityByUserId: actor.id }
-          : { isPriority: false, priorityAt: null, priorityReason: null, priorityByUserId: null }
+          ? {
+              isPriority: true,
+              priorityAt: now,
+              priorityReason: reason,
+              priorityByUserId: actor.id,
+            }
+          : {
+              isPriority: false,
+              priorityAt: null,
+              priorityReason: null,
+              priorityByUserId: null,
+            }
       )
       .where(eq(queueEntries.id, entry.id));
     const after = await recalculateCounter(tx, fx, counter.id, now);
@@ -727,10 +1036,18 @@ export async function setPriority(actor: Actor, input: { entryId: number; enable
     });
     await audit(tx, {
       actorUserId: actor.id,
-      action: input.enabled ? "queue.priority_assigned" : "queue.priority_removed",
+      action: input.enabled
+        ? "queue.priority_assigned"
+        : "queue.priority_removed",
       entityType: "queue_entry",
       entityId: entry.id,
-      metadata: { tokenNumber: entry.tokenNumber, counterId: counter.id, reason, previousPosition, newPosition },
+      metadata: {
+        tokenNumber: entry.tokenNumber,
+        counterId: counter.id,
+        reason,
+        previousPosition,
+        newPosition,
+      },
       ip: meta.ip,
     });
 
@@ -755,7 +1072,8 @@ export async function setPriority(actor: Actor, input: { entryId: number; enable
     ];
     after.forEach(next => {
       const prev = before.get(next.entryId);
-      if (next.entryId === entry.id || !prev || prev.position === next.position) return;
+      if (next.entryId === entry.id || !prev || prev.position === next.position)
+        return;
       alerts.push({
         userId: next.userId,
         type: "PRIORITY_ADJUSTMENT",
@@ -766,7 +1084,11 @@ export async function setPriority(actor: Actor, input: { entryId: number; enable
       });
     });
     await notify(tx, fx, alerts);
-    fx.queueChanged([counter.id], [entry.queueGroupId], input.enabled ? "PRIORITY_ASSIGNED" : "PRIORITY_REMOVED");
+    fx.queueChanged(
+      [counter.id],
+      [entry.queueGroupId],
+      input.enabled ? "PRIORITY_ASSIGNED" : "PRIORITY_REMOVED"
+    );
     fx.entryChanged(entry.userId, entry.id);
     return { tokenNumber: entry.tokenNumber, previousPosition, newPosition };
   });
@@ -774,13 +1096,22 @@ export async function setPriority(actor: Actor, input: { entryId: number; enable
 
 export async function setTraffic(
   actor: Actor,
-  input: { queueGroupId: number; level: TrafficLevel; delaySeconds: number; reason?: string },
+  input: {
+    queueGroupId: number;
+    level: TrafficLevel;
+    delaySeconds: number;
+    reason?: string;
+  },
   meta: Meta = {}
 ) {
   return runOp(async (tx, fx) => {
     const now = new Date();
     await assertGroupAccess(tx, actor, input.queueGroupId);
-    const [group] = await tx.select().from(queueGroups).where(eq(queueGroups.id, input.queueGroupId)).for("update");
+    const [group] = await tx
+      .select()
+      .from(queueGroups)
+      .where(eq(queueGroups.id, input.queueGroupId))
+      .for("update");
     if (!group) fail("NOT_FOUND", "That queue doesn't exist.");
     const groupCounters = await tx
       .select({ id: counters.id })
@@ -789,7 +1120,8 @@ export async function setTraffic(
       .orderBy(counters.id)
       .for("update");
     const before = new Map<number, LineState>();
-    for (const counter of groupCounters) before.set(counter.id, await snapshotLine(tx, counter.id, now));
+    for (const counter of groupCounters)
+      before.set(counter.id, await snapshotLine(tx, counter.id, now));
 
     const reason = input.reason?.trim() || null;
     await tx
@@ -812,12 +1144,27 @@ export async function setTraffic(
       });
     }
     const change = {
-      from: { level: group.trafficLevel, delaySeconds: group.trafficDelaySeconds },
+      from: {
+        level: group.trafficLevel,
+        delaySeconds: group.trafficDelaySeconds,
+      },
       to: { level: input.level, delaySeconds: input.delaySeconds },
       reason,
     };
-    await recordEvent(tx, { type: "TRAFFIC_UPDATED", groupId: group.id, actorUserId: actor.id, metadata: change });
-    await audit(tx, { actorUserId: actor.id, action: "queue.traffic_updated", entityType: "queue_group", entityId: group.id, metadata: change, ip: meta.ip });
+    await recordEvent(tx, {
+      type: "TRAFFIC_UPDATED",
+      groupId: group.id,
+      actorUserId: actor.id,
+      metadata: change,
+    });
+    await audit(tx, {
+      actorUserId: actor.id,
+      action: "queue.traffic_updated",
+      entityType: "queue_group",
+      entityId: group.id,
+      metadata: change,
+      ip: meta.ip,
+    });
     fx.queueChanged(
       groupCounters.map(c => c.id),
       [group.id],
@@ -831,11 +1178,17 @@ async function mergeInsideTx(
   tx: Tx,
   fx: Effects,
   actor: Actor,
-  input: { sourceCounterId: number; targetCounterId: number; strategy?: MergeStrategy; reason: string },
+  input: {
+    sourceCounterId: number;
+    targetCounterId: number;
+    strategy?: MergeStrategy;
+    reason: string;
+  },
   now: Date,
   meta: Meta
 ) {
-  if (input.sourceCounterId === input.targetCounterId) fail("VALIDATION", "Choose a different counter to merge into.");
+  if (input.sourceCounterId === input.targetCounterId)
+    fail("VALIDATION", "Choose a different counter to merge into.");
   // Authorised if the actor operates either side of the merge.
   if (actor.role !== "ADMIN") {
     try {
@@ -844,30 +1197,54 @@ async function mergeInsideTx(
       await assertCounterAccess(tx, actor, input.targetCounterId);
     }
   }
-  const [lowId, highId] = [input.sourceCounterId, input.targetCounterId].sort((a, b) => a - b);
+  const [lowId, highId] = [input.sourceCounterId, input.targetCounterId].sort(
+    (a, b) => a - b
+  );
   const low = await lockCounter(tx, lowId);
   const high = await lockCounter(tx, highId);
   const source = low.id === input.sourceCounterId ? low : high;
   const target = low.id === input.targetCounterId ? low : high;
-  if (source.queueGroupId !== target.queueGroupId) fail("VALIDATION", "Counters can only be merged within the same queue.");
-  if (target.status === "OFFLINE") fail("COUNTER_UNAVAILABLE", `${target.name} is offline and can't take over another queue.`);
+  if (source.queueGroupId !== target.queueGroupId)
+    fail("VALIDATION", "Counters can only be merged within the same queue.");
+  if (target.status === "OFFLINE")
+    fail(
+      "COUNTER_UNAVAILABLE",
+      `${target.name} is offline and can't take over another queue.`
+    );
   const { group, service } = await loadGroupContext(tx, source.queueGroupId);
   const strategy = input.strategy ?? group.mergeStrategy;
 
   const sourceActive = await activeAtCounters(tx, [source.id]);
   const serving = sourceActive.filter(entry => entry.status === "SERVING");
   if (serving.length > 0) {
-    fail("INVALID_TRANSITION", `Finish serving ${serving.map(e => e.tokenNumber).join(", ")} at ${source.name} before merging.`);
+    fail(
+      "INVALID_TRANSITION",
+      `Finish serving ${serving.map(e => e.tokenNumber).join(", ")} at ${source.name} before merging.`
+    );
   }
   const beforeTarget = await snapshotLine(tx, target.id, now);
   const beforeSource = await snapshotLine(tx, source.id, now);
 
   // Tokens already called to the unavailable counter go back to the front of its line.
-  for (const called of sourceActive.filter(entry => entry.status === "CALLED")) {
-    await transition(tx, called, "WAITING", actor.id, now, {}, { requeuedFrom: source.id });
+  for (const called of sourceActive.filter(
+    entry => entry.status === "CALLED"
+  )) {
+    await transition(
+      tx,
+      called,
+      "WAITING",
+      actor.id,
+      now,
+      {},
+      { requeuedFrom: source.id }
+    );
   }
-  const sourceWaiting = (await activeAtCounters(tx, [source.id])).filter(entry => entry.status === "WAITING");
-  const targetWaiting = (await activeAtCounters(tx, [target.id])).filter(entry => entry.status === "WAITING");
+  const sourceWaiting = (await activeAtCounters(tx, [source.id])).filter(
+    entry => entry.status === "WAITING"
+  );
+  const targetWaiting = (await activeAtCounters(tx, [target.id])).filter(
+    entry => entry.status === "WAITING"
+  );
   const woven = mergeLines(
     targetWaiting.filter(entry => !entry.isPriority),
     sourceWaiting.filter(entry => !entry.isPriority),
@@ -875,16 +1252,30 @@ async function mergeInsideTx(
   );
   let orderKey = target.nextOrderKey;
   for (const entry of woven) {
-    await tx.update(queueEntries).set({ counterId: target.id, orderKey: orderKey++ }).where(eq(queueEntries.id, entry.id));
+    await tx
+      .update(queueEntries)
+      .set({ counterId: target.id, orderKey: orderKey++ })
+      .where(eq(queueEntries.id, entry.id));
   }
   for (const entry of sourceWaiting.filter(e => e.isPriority)) {
-    await tx.update(queueEntries).set({ counterId: target.id }).where(eq(queueEntries.id, entry.id));
+    await tx
+      .update(queueEntries)
+      .set({ counterId: target.id })
+      .where(eq(queueEntries.id, entry.id));
   }
-  await tx.update(counters).set({ nextOrderKey: orderKey }).where(eq(counters.id, target.id));
+  await tx
+    .update(counters)
+    .set({ nextOrderKey: orderKey })
+    .where(eq(counters.id, target.id));
   const reason = input.reason.trim();
   await tx
     .update(counters)
-    .set({ status: "OFFLINE", statusReason: reason, statusUpdatedAt: now, mergedIntoCounterId: target.id })
+    .set({
+      status: "OFFLINE",
+      statusReason: reason,
+      statusUpdatedAt: now,
+      mergedIntoCounterId: target.id,
+    })
     .where(eq(counters.id, source.id));
 
   for (const entry of sourceWaiting) {
@@ -894,7 +1285,12 @@ async function mergeInsideTx(
       counterId: target.id,
       groupId: group.id,
       actorUserId: actor.id,
-      metadata: { fromCounterId: source.id, toCounterId: target.id, strategy, reason },
+      metadata: {
+        fromCounterId: source.id,
+        toCounterId: target.id,
+        strategy,
+        reason,
+      },
     });
   }
   await recordEvent(tx, {
@@ -904,7 +1300,11 @@ async function mergeInsideTx(
     actorUserId: actor.id,
     fromStatus: source.status,
     toStatus: "OFFLINE",
-    metadata: { reason, mergedIntoCounterId: target.id, moved: sourceWaiting.length },
+    metadata: {
+      reason,
+      mergedIntoCounterId: target.id,
+      moved: sourceWaiting.length,
+    },
   });
 
   const after = await recalculateCounter(tx, fx, target.id, now);
@@ -940,7 +1340,13 @@ async function mergeInsideTx(
     action: "queue.merged",
     entityType: "counter",
     entityId: source.id,
-    metadata: { sourceCounterId: source.id, targetCounterId: target.id, strategy, reason, moved: sourceWaiting.length },
+    metadata: {
+      sourceCounterId: source.id,
+      targetCounterId: target.id,
+      strategy,
+      reason,
+      moved: sourceWaiting.length,
+    },
     ip: meta.ip,
   });
   fx.queueChanged([source.id, target.id], [group.id], "MERGED");
@@ -951,16 +1357,30 @@ async function mergeInsideTx(
 
 export async function mergeCounters(
   actor: Actor,
-  input: { sourceCounterId: number; targetCounterId: number; strategy?: MergeStrategy; reason: string },
+  input: {
+    sourceCounterId: number;
+    targetCounterId: number;
+    strategy?: MergeStrategy;
+    reason: string;
+  },
   meta: Meta = {}
 ) {
-  if (input.reason.trim().length < 3) fail("VALIDATION", "A reason of at least 3 characters is required.");
-  return runOp((tx, fx) => mergeInsideTx(tx, fx, actor, input, new Date(), meta));
+  if (input.reason.trim().length < 3)
+    fail("VALIDATION", "A reason of at least 3 characters is required.");
+  return runOp((tx, fx) =>
+    mergeInsideTx(tx, fx, actor, input, new Date(), meta)
+  );
 }
 
 export async function setCounterStatus(
   actor: Actor,
-  input: { counterId: number; status: "OPEN" | "PAUSED" | "OFFLINE"; reason?: string; mergeIntoCounterId?: number; strategy?: MergeStrategy },
+  input: {
+    counterId: number;
+    status: "OPEN" | "PAUSED" | "OFFLINE";
+    reason?: string;
+    mergeIntoCounterId?: number;
+    strategy?: MergeStrategy;
+  },
   meta: Meta = {}
 ) {
   if (input.status === "OFFLINE" && input.mergeIntoCounterId) {
@@ -1008,14 +1428,24 @@ export async function setCounterStatus(
       ip: meta.ip,
     });
     const line = await recalculateCounter(tx, fx, counter.id, now);
-    const type = input.status === "OPEN" ? "COUNTER_RESUMED" : input.status === "PAUSED" ? "COUNTER_PAUSED" : "COUNTER_OFFLINE";
+    const type =
+      input.status === "OPEN"
+        ? "COUNTER_RESUMED"
+        : input.status === "PAUSED"
+          ? "COUNTER_PAUSED"
+          : "COUNTER_OFFLINE";
     const alerts: NotificationInput[] = [];
     line.forEach(position =>
       alerts.push({
         userId: position.userId,
         type,
         title: `${counter.name} ${input.status === "OPEN" ? "reopened" : input.status === "PAUSED" ? "paused" : "offline"}`,
-        message: counterStatusMessage(input.status, counter.name, position.tokenNumber, reason),
+        message: counterStatusMessage(
+          input.status,
+          counter.name,
+          position.tokenNumber,
+          reason
+        ),
         queueEntryId: position.entryId,
         tokenNumber: position.tokenNumber,
       })
@@ -1027,16 +1457,32 @@ export async function setCounterStatus(
 }
 
 /** Cancels every active token a user holds (e.g. account suspended). */
-export async function cancelAllForUser(tx: Tx, fx: Effects, userId: number, actorUserId: number, reason: string) {
+export async function cancelAllForUser(
+  tx: Tx,
+  fx: Effects,
+  userId: number,
+  actorUserId: number,
+  reason: string
+) {
   const now = new Date();
   const active = await tx
     .select({ id: queueEntries.id })
     .from(queueEntries)
-    .where(and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ACTIVE)));
+    .where(
+      and(eq(queueEntries.userId, userId), inArray(queueEntries.status, ACTIVE))
+    );
   for (const { id } of active) {
     const { entry, counter } = await lockEntry(tx, id);
     if (!ACTIVE.includes(entry.status as (typeof ACTIVE)[number])) continue;
-    await transition(tx, entry, "CANCELLED", actorUserId, now, { closedReason: reason, closedByUserId: actorUserId }, { reason });
+    await transition(
+      tx,
+      entry,
+      "CANCELLED",
+      actorUserId,
+      now,
+      { closedReason: reason, closedByUserId: actorUserId },
+      { reason }
+    );
     await recalculateCounter(tx, fx, counter.id, now);
     fx.queueChanged([counter.id], [entry.queueGroupId], "CANCELLED");
     fx.entryChanged(userId, entry.id);
@@ -1048,13 +1494,22 @@ export async function cancelAllForUser(tx: Tx, fx: Effects, userId: number, acto
  * Re-evaluates the estimate of every counter that has people waiting. Runs periodically so estimates
  * stay honest when service takes longer than expected, and after camera-driven traffic changes.
  */
-export async function recalculateGroups(queueGroupIds: number[] | null, cause?: { up: string; down: string }) {
+export async function recalculateGroups(
+  queueGroupIds: number[] | null,
+  cause?: { up: string; down: string }
+) {
   const rows = await db
-    .selectDistinct({ counterId: queueEntries.counterId, queueGroupId: queueEntries.queueGroupId })
+    .selectDistinct({
+      counterId: queueEntries.counterId,
+      queueGroupId: queueEntries.queueGroupId,
+    })
     .from(queueEntries)
     .where(
       queueGroupIds
-        ? and(eq(queueEntries.status, "WAITING"), inArray(queueEntries.queueGroupId, queueGroupIds))
+        ? and(
+            eq(queueEntries.status, "WAITING"),
+            inArray(queueEntries.queueGroupId, queueGroupIds)
+          )
         : eq(queueEntries.status, "WAITING")
     );
   for (const row of rows) {
@@ -1062,13 +1517,20 @@ export async function recalculateGroups(queueGroupIds: number[] | null, cause?: 
       await runOp(async (tx, fx) => {
         const now = new Date();
         await lockCounter(tx, row.counterId);
-        const before = cause ? await snapshotLine(tx, row.counterId, now) : null;
+        const before = cause
+          ? await snapshotLine(tx, row.counterId, now)
+          : null;
         const after = await recalculateCounter(tx, fx, row.counterId, now);
-        if (before && cause) await notifyWaitChanges(tx, fx, before, after, cause);
-        if (fx.hasEntryChanges) fx.queueChanged([row.counterId], [row.queueGroupId], "CONFIG");
+        if (before && cause)
+          await notifyWaitChanges(tx, fx, before, after, cause);
+        if (fx.hasEntryChanges)
+          fx.queueChanged([row.counterId], [row.queueGroupId], "CONFIG");
       });
     } catch (error) {
-      logger.warn("Periodic recalculation failed for counter", { counterId: row.counterId, error });
+      logger.warn("Periodic recalculation failed for counter", {
+        counterId: row.counterId,
+        error,
+      });
     }
   }
 }

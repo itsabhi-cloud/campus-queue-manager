@@ -21,7 +21,10 @@ const slugSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, digits and hyphens.")
+  .regex(
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    "Use lowercase letters, digits and hyphens."
+  )
   .max(60);
 
 export const serviceInput = z.object({
@@ -53,7 +56,10 @@ export const groupInput = z
     isActive: z.boolean(),
     displayOrder: z.number().int().min(0).max(999),
   })
-  .refine(v => v.cameraHeavyAt > v.cameraModerateAt, { message: "Heavy threshold must be above the moderate threshold.", path: ["cameraHeavyAt"] });
+  .refine(v => v.cameraHeavyAt > v.cameraModerateAt, {
+    message: "Heavy threshold must be above the moderate threshold.",
+    path: ["cameraHeavyAt"],
+  });
 
 export const counterInput = z.object({
   id: z.number().int().positive().optional(),
@@ -63,7 +69,10 @@ export const counterInput = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z][A-Z0-9]{0,3}$/, "Prefix: 1–4 characters, starting with a letter."),
+    .regex(
+      /^[A-Z][A-Z0-9]{0,3}$/,
+      "Prefix: 1–4 characters, starting with a letter."
+    ),
   isActive: z.boolean(),
   displayOrder: z.number().int().min(0).max(999),
 });
@@ -76,16 +85,32 @@ async function activeCount(where: ReturnType<typeof eq>) {
   const [{ n }] = await db
     .select({ n: count() })
     .from(queueEntries)
-    .where(and(where, inArray(queueEntries.status, ["WAITING", "CALLED", "SERVING"])));
+    .where(
+      and(where, inArray(queueEntries.status, ["WAITING", "CALLED", "SERVING"]))
+    );
   return n;
 }
 
 export async function adminCatalog() {
-  const serviceRows = await db.select().from(services).orderBy(asc(services.displayOrder), asc(services.id));
-  const groupRows = await db.select().from(queueGroups).orderBy(asc(queueGroups.displayOrder), asc(queueGroups.id));
-  const counterRows = await db.select().from(counters).orderBy(asc(counters.displayOrder), asc(counters.id));
+  const serviceRows = await db
+    .select()
+    .from(services)
+    .orderBy(asc(services.displayOrder), asc(services.id));
+  const groupRows = await db
+    .select()
+    .from(queueGroups)
+    .orderBy(asc(queueGroups.displayOrder), asc(queueGroups.id));
+  const counterRows = await db
+    .select()
+    .from(counters)
+    .orderBy(asc(counters.displayOrder), asc(counters.id));
   const assignments = await db
-    .select({ counterId: staffCounterAssignments.counterId, staffUserId: users.id, name: users.name, status: users.status })
+    .select({
+      counterId: staffCounterAssignments.counterId,
+      staffUserId: users.id,
+      name: users.name,
+      status: users.status,
+    })
     .from(staffCounterAssignments)
     .innerJoin(users, eq(users.id, staffCounterAssignments.staffUserId));
   const active = await db
@@ -104,39 +129,85 @@ export async function adminCatalog() {
           .map(counter => ({
             ...counter,
             activeEntries: active.find(a => a.counterId === counter.id)?.n ?? 0,
-            staff: assignments.filter(a => a.counterId === counter.id).map(a => ({ id: a.staffUserId, name: a.name, status: a.status })),
+            staff: assignments
+              .filter(a => a.counterId === counter.id)
+              .map(a => ({
+                id: a.staffUserId,
+                name: a.name,
+                status: a.status,
+              })),
           })),
       })),
   }));
 }
 
-export async function upsertService(actor: SessionUser, input: z.infer<typeof serviceInput>, ip: string) {
+export async function upsertService(
+  actor: SessionUser,
+  input: z.infer<typeof serviceInput>,
+  ip: string
+) {
   try {
     const id = await withTransaction(async tx => {
-      const values = { slug: input.slug, name: input.name, description: input.description, kind: input.kind, notice: input.notice || null, isActive: input.isActive, displayOrder: input.displayOrder };
+      const values = {
+        slug: input.slug,
+        name: input.name,
+        description: input.description,
+        kind: input.kind,
+        notice: input.notice || null,
+        isActive: input.isActive,
+        displayOrder: input.displayOrder,
+      };
       let id = input.id;
       if (id) await tx.update(services).set(values).where(eq(services.id, id));
       else id = (await tx.insert(services).values(values).$returningId())[0].id;
-      await audit(tx, { actorUserId: actor.id, action: input.id ? "service.updated" : "service.created", entityType: "service", entityId: id, metadata: values, ip });
+      await audit(tx, {
+        actorUserId: actor.id,
+        action: input.id ? "service.updated" : "service.created",
+        entityType: "service",
+        entityId: id,
+        metadata: values,
+        ip,
+      });
       return id;
     });
     changed();
     return { id };
   } catch (error) {
-    if (isDuplicateKeyError(error, "services_slug_unique")) fail("CONFLICT", "Another service already uses this slug.");
+    if (isDuplicateKeyError(error, "services_slug_unique"))
+      fail("CONFLICT", "Another service already uses this slug.");
     throw error;
   }
 }
 
-export async function upsertGroup(actor: SessionUser, input: z.infer<typeof groupInput>, ip: string) {
-  const [service] = await db.select({ id: services.id }).from(services).where(eq(services.id, input.serviceId)).limit(1);
+export async function upsertGroup(
+  actor: SessionUser,
+  input: z.infer<typeof groupInput>,
+  ip: string
+) {
+  const [service] = await db
+    .select({ id: services.id })
+    .from(services)
+    .where(eq(services.id, input.serviceId))
+    .limit(1);
   if (!service) fail("NOT_FOUND", "Service not found.");
   if (input.id) {
-    const [existing] = await db.select().from(queueGroups).where(eq(queueGroups.id, input.id)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(queueGroups)
+      .where(eq(queueGroups.id, input.id))
+      .limit(1);
     if (!existing) fail("NOT_FOUND", "Queue group not found.");
-    if (existing.serviceId !== input.serviceId) fail("VALIDATION", "A queue group can't be moved to another service.");
-    if (existing.isActive && !input.isActive && (await activeCount(eq(queueEntries.queueGroupId, input.id))) > 0) {
-      fail("CONFLICT", "This queue still has active tokens. Serve or cancel them before deactivating it.");
+    if (existing.serviceId !== input.serviceId)
+      fail("VALIDATION", "A queue group can't be moved to another service.");
+    if (
+      existing.isActive &&
+      !input.isActive &&
+      (await activeCount(eq(queueEntries.queueGroupId, input.id))) > 0
+    ) {
+      fail(
+        "CONFLICT",
+        "This queue still has active tokens. Serve or cancel them before deactivating it."
+      );
     }
   }
   try {
@@ -144,68 +215,153 @@ export async function upsertGroup(actor: SessionUser, input: z.infer<typeof grou
     const id = await withTransaction(async tx => {
       let id = input.id;
       const row = { ...values, description: values.description || null };
-      if (id) await tx.update(queueGroups).set(row).where(eq(queueGroups.id, id));
+      if (id)
+        await tx.update(queueGroups).set(row).where(eq(queueGroups.id, id));
       else id = (await tx.insert(queueGroups).values(row).$returningId())[0].id;
-      await audit(tx, { actorUserId: actor.id, action: input.id ? "queue_group.updated" : "queue_group.created", entityType: "queue_group", entityId: id, metadata: row, ip });
+      await audit(tx, {
+        actorUserId: actor.id,
+        action: input.id ? "queue_group.updated" : "queue_group.created",
+        entityType: "queue_group",
+        entityId: id,
+        metadata: row,
+        ip,
+      });
       return id;
     });
     changed();
     void _id;
     return { id };
   } catch (error) {
-    if (isDuplicateKeyError(error, "queue_groups_service_slug_unique")) fail("CONFLICT", "This service already has a queue with that slug.");
+    if (isDuplicateKeyError(error, "queue_groups_service_slug_unique"))
+      fail("CONFLICT", "This service already has a queue with that slug.");
     throw error;
   }
 }
 
-export async function upsertCounter(actor: SessionUser, input: z.infer<typeof counterInput>, ip: string) {
-  const [group] = await db.select({ id: queueGroups.id }).from(queueGroups).where(eq(queueGroups.id, input.queueGroupId)).limit(1);
+export async function upsertCounter(
+  actor: SessionUser,
+  input: z.infer<typeof counterInput>,
+  ip: string
+) {
+  const [group] = await db
+    .select({ id: queueGroups.id })
+    .from(queueGroups)
+    .where(eq(queueGroups.id, input.queueGroupId))
+    .limit(1);
   if (!group) fail("NOT_FOUND", "Queue group not found.");
   if (input.id) {
-    const [existing] = await db.select().from(counters).where(eq(counters.id, input.id)).limit(1);
+    const [existing] = await db
+      .select()
+      .from(counters)
+      .where(eq(counters.id, input.id))
+      .limit(1);
     if (!existing) fail("NOT_FOUND", "Counter not found.");
-    if (existing.queueGroupId !== input.queueGroupId) fail("VALIDATION", "A counter can't be moved to another queue group; create a new counter instead.");
+    if (existing.queueGroupId !== input.queueGroupId)
+      fail(
+        "VALIDATION",
+        "A counter can't be moved to another queue group; create a new counter instead."
+      );
     const busy = await activeCount(eq(queueEntries.counterId, input.id));
-    if (busy > 0 && existing.tokenPrefix !== input.tokenPrefix) fail("CONFLICT", "The token prefix can't change while this counter has active tokens.");
-    if (busy > 0 && existing.isActive && !input.isActive) fail("CONFLICT", "This counter still has active tokens. Merge or serve them before deactivating it.");
+    if (busy > 0 && existing.tokenPrefix !== input.tokenPrefix)
+      fail(
+        "CONFLICT",
+        "The token prefix can't change while this counter has active tokens."
+      );
+    if (busy > 0 && existing.isActive && !input.isActive)
+      fail(
+        "CONFLICT",
+        "This counter still has active tokens. Merge or serve them before deactivating it."
+      );
   }
   try {
     const id = await withTransaction(async tx => {
-      const values = { queueGroupId: input.queueGroupId, name: input.name, tokenPrefix: input.tokenPrefix, isActive: input.isActive, displayOrder: input.displayOrder };
+      const values = {
+        queueGroupId: input.queueGroupId,
+        name: input.name,
+        tokenPrefix: input.tokenPrefix,
+        isActive: input.isActive,
+        displayOrder: input.displayOrder,
+      };
       let id = input.id;
       if (id) await tx.update(counters).set(values).where(eq(counters.id, id));
-      else id = (await tx.insert(counters).values({ ...values, status: "OPEN", statusUpdatedAt: new Date() }).$returningId())[0].id;
-      await audit(tx, { actorUserId: actor.id, action: input.id ? "counter.updated" : "counter.created", entityType: "counter", entityId: id, metadata: values, ip });
+      else
+        id = (
+          await tx
+            .insert(counters)
+            .values({ ...values, status: "OPEN", statusUpdatedAt: new Date() })
+            .$returningId()
+        )[0].id;
+      await audit(tx, {
+        actorUserId: actor.id,
+        action: input.id ? "counter.updated" : "counter.created",
+        entityType: "counter",
+        entityId: id,
+        metadata: values,
+        ip,
+      });
       return id;
     });
     changed();
     return { id };
   } catch (error) {
-    if (isDuplicateKeyError(error, "counters_token_prefix_unique")) fail("CONFLICT", "Another counter already uses this token prefix.");
+    if (isDuplicateKeyError(error, "counters_token_prefix_unique"))
+      fail("CONFLICT", "Another counter already uses this token prefix.");
     throw error;
   }
 }
 
-export async function setStaffAssignments(actor: SessionUser, input: { staffUserId: number; counterIds: number[] }, ip: string) {
-  const [staff] = await db.select().from(users).where(eq(users.id, input.staffUserId)).limit(1);
-  if (!staff || staff.role !== "STAFF") fail("VALIDATION", "Assignments are for staff accounts. Administrators can already operate every counter.");
+export async function setStaffAssignments(
+  actor: SessionUser,
+  input: { staffUserId: number; counterIds: number[] },
+  ip: string
+) {
+  const [staff] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, input.staffUserId))
+    .limit(1);
+  if (!staff || staff.role !== "STAFF")
+    fail(
+      "VALIDATION",
+      "Assignments are for staff accounts. Administrators can already operate every counter."
+    );
   const counterIds = [...new Set(input.counterIds)];
   if (counterIds.length) {
-    const found = await db.select({ id: counters.id }).from(counters).where(inArray(counters.id, counterIds));
-    if (found.length !== counterIds.length) fail("NOT_FOUND", "One or more counters no longer exist.");
+    const found = await db
+      .select({ id: counters.id })
+      .from(counters)
+      .where(inArray(counters.id, counterIds));
+    if (found.length !== counterIds.length)
+      fail("NOT_FOUND", "One or more counters no longer exist.");
   }
   await withTransaction(async tx => {
-    const before = await tx.select({ counterId: staffCounterAssignments.counterId }).from(staffCounterAssignments).where(eq(staffCounterAssignments.staffUserId, staff.id));
-    await tx.delete(staffCounterAssignments).where(eq(staffCounterAssignments.staffUserId, staff.id));
+    const before = await tx
+      .select({ counterId: staffCounterAssignments.counterId })
+      .from(staffCounterAssignments)
+      .where(eq(staffCounterAssignments.staffUserId, staff.id));
+    await tx
+      .delete(staffCounterAssignments)
+      .where(eq(staffCounterAssignments.staffUserId, staff.id));
     if (counterIds.length) {
-      await tx.insert(staffCounterAssignments).values(counterIds.map(counterId => ({ staffUserId: staff.id, counterId, assignedByUserId: actor.id })));
+      await tx
+        .insert(staffCounterAssignments)
+        .values(
+          counterIds.map(counterId => ({
+            staffUserId: staff.id,
+            counterId,
+            assignedByUserId: actor.id,
+          }))
+        );
     }
     await audit(tx, {
       actorUserId: actor.id,
       action: "assignment.changed",
       entityType: "user",
       entityId: staff.id,
-      metadata: { before: before.map(b => b.counterId).sort((a, b) => a - b), after: counterIds.sort((a, b) => a - b) },
+      metadata: {
+        before: before.map(b => b.counterId).sort((a, b) => a - b),
+        after: counterIds.sort((a, b) => a - b),
+      },
       ip,
     });
   });
@@ -218,19 +374,44 @@ export const stationInput = z.object({
   name: z.string().trim().min(2).max(120),
   queueGroupId: z.number().int().positive(),
   roi: z
-    .object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().min(0.05).max(1), height: z.number().min(0.05).max(1) })
-    .refine(r => r.x + r.width <= 1.0001 && r.y + r.height <= 1.0001, "The region must stay inside the frame."),
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+      width: z.number().min(0.05).max(1),
+      height: z.number().min(0.05).max(1),
+    })
+    .refine(
+      r => r.x + r.width <= 1.0001 && r.y + r.height <= 1.0001,
+      "The region must stay inside the frame."
+    ),
   confidenceThreshold: z.number().int().min(30).max(95),
   isActive: z.boolean(),
 });
 
-export async function upsertStation(actor: SessionUser, input: z.infer<typeof stationInput>, ip: string) {
+export async function upsertStation(
+  actor: SessionUser,
+  input: z.infer<typeof stationInput>,
+  ip: string
+) {
   const id = await withTransaction(async tx => {
     const { id: existingId, ...values } = input;
     let id = existingId;
-    if (id) await tx.update(cameraStations).set(values).where(eq(cameraStations.id, id));
-    else id = (await tx.insert(cameraStations).values(values).$returningId())[0].id;
-    await audit(tx, { actorUserId: actor.id, action: existingId ? "camera_station.updated" : "camera_station.created", entityType: "camera_station", entityId: id, metadata: values, ip });
+    if (id)
+      await tx
+        .update(cameraStations)
+        .set(values)
+        .where(eq(cameraStations.id, id));
+    else
+      id = (await tx.insert(cameraStations).values(values).$returningId())[0]
+        .id;
+    await audit(tx, {
+      actorUserId: actor.id,
+      action: existingId ? "camera_station.updated" : "camera_station.created",
+      entityType: "camera_station",
+      entityId: id,
+      metadata: values,
+      ip,
+    });
     return id;
   });
   changed();

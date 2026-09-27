@@ -7,7 +7,14 @@ import { fail } from "../_core/errors";
 import { router, staffProcedure } from "../_core/trpc";
 import { db } from "../db/client";
 import { assertCounterAccess, operableCounterIds } from "../queue/access";
-import { actOnEntries, callNext, mergeCounters, setCounterStatus, setPriority, setTraffic } from "../queue/engine";
+import {
+  actOnEntries,
+  callNext,
+  mergeCounters,
+  setCounterStatus,
+  setPriority,
+  setTraffic,
+} from "../queue/engine";
 import { staffBoardView } from "../queue/views";
 
 const id = z.number().int().positive();
@@ -33,27 +40,60 @@ export const staffRouter = router({
       .from(counters)
       .innerJoin(queueGroups, eq(queueGroups.id, counters.queueGroupId))
       .innerJoin(services, eq(services.id, queueGroups.serviceId))
-      .where(allowed ? inArray(counters.id, allowed) : eq(counters.isActive, true))
-      .orderBy(asc(services.displayOrder), asc(queueGroups.displayOrder), asc(counters.displayOrder), asc(counters.id));
+      .where(
+        allowed ? inArray(counters.id, allowed) : eq(counters.isActive, true)
+      )
+      .orderBy(
+        asc(services.displayOrder),
+        asc(queueGroups.displayOrder),
+        asc(counters.displayOrder),
+        asc(counters.id)
+      );
   }),
 
-  board: staffProcedure.input(z.object({ counterId: id })).query(async ({ ctx, input }) => {
-    await assertCounterAccess(db, ctx.user, input.counterId);
-    const board = await staffBoardView(db, input.counterId);
-    if (!board) fail("NOT_FOUND", "Counter not found.");
-    return board;
-  }),
+  board: staffProcedure
+    .input(z.object({ counterId: id }))
+    .query(async ({ ctx, input }) => {
+      await assertCounterAccess(db, ctx.user, input.counterId);
+      const board = await staffBoardView(db, input.counterId);
+      if (!board) fail("NOT_FOUND", "Counter not found.");
+      return board;
+    }),
 
-  callNext: staffProcedure.input(z.object({ counterId: id })).mutation(({ ctx, input }) => callNext(ctx.user, input.counterId)),
+  callNext: staffProcedure
+    .input(z.object({ counterId: id }))
+    .mutation(({ ctx, input }) => callNext(ctx.user, input.counterId)),
 
-  serve: staffProcedure.input(z.object({ entryIds: z.array(id).min(1).max(50) })).mutation(({ ctx, input }) => actOnEntries(ctx.user, { ...input, action: "SERVE" }, ctx)),
-  complete: staffProcedure.input(z.object({ entryIds: z.array(id).min(1).max(50) })).mutation(({ ctx, input }) => actOnEntries(ctx.user, { ...input, action: "COMPLETE" }, ctx)),
+  serve: staffProcedure
+    .input(z.object({ entryIds: z.array(id).min(1).max(50) }))
+    .mutation(({ ctx, input }) =>
+      actOnEntries(ctx.user, { ...input, action: "SERVE" }, ctx)
+    ),
+  complete: staffProcedure
+    .input(z.object({ entryIds: z.array(id).min(1).max(50) }))
+    .mutation(({ ctx, input }) =>
+      actOnEntries(ctx.user, { ...input, action: "COMPLETE" }, ctx)
+    ),
   skip: staffProcedure
-    .input(z.object({ entryIds: z.array(id).min(1).max(50), reason: reason.optional() }))
-    .mutation(({ ctx, input }) => actOnEntries(ctx.user, { ...input, action: "SKIP" }, ctx)),
+    .input(
+      z.object({
+        entryIds: z.array(id).min(1).max(50),
+        reason: reason.optional(),
+      })
+    )
+    .mutation(({ ctx, input }) =>
+      actOnEntries(ctx.user, { ...input, action: "SKIP" }, ctx)
+    ),
   cancel: staffProcedure
-    .input(z.object({ entryIds: z.array(id).min(1).max(50), reason: reason.min(3, "Please give a reason.") }))
-    .mutation(({ ctx, input }) => actOnEntries(ctx.user, { ...input, action: "CANCEL" }, ctx)),
+    .input(
+      z.object({
+        entryIds: z.array(id).min(1).max(50),
+        reason: reason.min(3, "Please give a reason."),
+      })
+    )
+    .mutation(({ ctx, input }) =>
+      actOnEntries(ctx.user, { ...input, action: "CANCEL" }, ctx)
+    ),
 
   setCounterStatus: staffProcedure
     .input(
@@ -68,24 +108,62 @@ export const staffRouter = router({
     .mutation(({ ctx, input }) => setCounterStatus(ctx.user, input, ctx)),
 
   merge: staffProcedure
-    .input(z.object({ sourceCounterId: id, targetCounterId: id, strategy: z.enum(MERGE_STRATEGIES).optional(), reason: reason.min(3, "Please give a reason.") }))
+    .input(
+      z.object({
+        sourceCounterId: id,
+        targetCounterId: id,
+        strategy: z.enum(MERGE_STRATEGIES).optional(),
+        reason: reason.min(3, "Please give a reason."),
+      })
+    )
     .mutation(({ ctx, input }) => mergeCounters(ctx.user, input, ctx)),
 
   setTraffic: staffProcedure
-    .input(z.object({ queueGroupId: id, level: z.enum(TRAFFIC_LEVELS), delaySeconds: z.number().int().min(0).max(3600), reason: reason.optional() }))
+    .input(
+      z.object({
+        queueGroupId: id,
+        level: z.enum(TRAFFIC_LEVELS),
+        delaySeconds: z.number().int().min(0).max(3600),
+        reason: reason.optional(),
+      })
+    )
     .mutation(({ ctx, input }) => setTraffic(ctx.user, input, ctx)),
 
   setPriority: staffProcedure
-    .input(z.object({ entryId: id, enabled: z.boolean(), reason: reason.min(3, "A reason is required for priority changes.") }))
+    .input(
+      z.object({
+        entryId: id,
+        enabled: z.boolean(),
+        reason: reason.min(3, "A reason is required for priority changes."),
+      })
+    )
     .mutation(({ ctx, input }) => setPriority(ctx.user, input, ctx)),
 });
 
 export const cameraRouter = router({
   stations: staffProcedure.query(({ ctx }) => listStations(ctx.user)),
   report: staffProcedure
-    .input(z.object({ stationId: id, peopleCount: z.number().int().min(0).max(500), rawDetections: z.number().int().min(0).max(500) }))
+    .input(
+      z.object({
+        stationId: id,
+        peopleCount: z.number().int().min(0).max(500),
+        rawDetections: z.number().int().min(0).max(500),
+      })
+    )
     .mutation(({ ctx, input }) => reportCount(ctx.user, input)),
   history: staffProcedure
-    .input(z.object({ stationId: id, minutes: z.number().int().min(5).max(24 * 60).default(60) }))
-    .query(({ ctx, input }) => stationHistory(ctx.user, input.stationId, input.minutes)),
+    .input(
+      z.object({
+        stationId: id,
+        minutes: z
+          .number()
+          .int()
+          .min(5)
+          .max(24 * 60)
+          .default(60),
+      })
+    )
+    .query(({ ctx, input }) =>
+      stationHistory(ctx.user, input.stationId, input.minutes)
+    ),
 });

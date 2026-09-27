@@ -6,7 +6,10 @@ try {
   await runMigrations();
   console.log("Migrations applied.");
 } catch (error) {
-  console.error("Migration failed:", error instanceof Error ? error.message : error);
+  console.error(
+    "Migration failed:",
+    error instanceof Error ? error.message : error
+  );
   process.exitCode = 1;
 } finally {
   await closeDatabase();

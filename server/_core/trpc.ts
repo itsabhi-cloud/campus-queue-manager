@@ -26,10 +26,17 @@ const t = initTRPC.context<TrpcContext>().create({
                   ? "INTERNAL"
                   : "VALIDATION";
     const isInternal = error.code === "INTERNAL_SERVER_ERROR";
-    if (isInternal) logger.error("Unhandled API error", { path, error: error.cause ?? error });
+    if (isInternal)
+      logger.error("Unhandled API error", {
+        path,
+        error: error.cause ?? error,
+      });
     const validation =
       error.cause instanceof ZodError
-        ? error.cause.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }))
+        ? error.cause.issues.map(issue => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          }))
         : undefined;
     return {
       ...shape,
@@ -56,31 +63,46 @@ export const publicProcedure = t.procedure;
 
 const requireUser = t.middleware(({ ctx, next }) => {
   if (!ctx.user) {
-    if (ctx.sessionExpired) fail("SESSION_EXPIRED", "Your session has expired. Please sign in again.");
+    if (ctx.sessionExpired)
+      fail(
+        "SESSION_EXPIRED",
+        "Your session has expired. Please sign in again."
+      );
     fail("UNAUTHENTICATED", "Please sign in to continue.");
   }
-  return next({ ctx: { ...ctx, user: ctx.user, sessionId: ctx.sessionId as string } });
+  return next({
+    ctx: { ...ctx, user: ctx.user, sessionId: ctx.sessionId as string },
+  });
 });
 
 /** Per-user throttle on writes so a stuck client or script cannot hammer the queue engine. */
 const throttleMutations = t.middleware(({ ctx, type, next }) => {
   if (type === "mutation" && ctx.user) {
     const waitMs = limiters.mutationsByUser.consume(`user:${ctx.user.id}`);
-    if (waitMs > 0) fail("RATE_LIMITED", "You're doing that too quickly. Please wait a moment.");
+    if (waitMs > 0)
+      fail(
+        "RATE_LIMITED",
+        "You're doing that too quickly. Please wait a moment."
+      );
   }
   return next();
 });
 
-export const authedProcedure = t.procedure.use(requireUser).use(throttleMutations);
+export const authedProcedure = t.procedure
+  .use(requireUser)
+  .use(throttleMutations);
 
 function requireRole(...roles: Role[]) {
   return t.middleware(({ ctx, next }) => {
-    if (!ctx.user || !roles.includes(ctx.user.role)) fail("FORBIDDEN", "You don't have permission to do that.");
+    if (!ctx.user || !roles.includes(ctx.user.role))
+      fail("FORBIDDEN", "You don't have permission to do that.");
     return next();
   });
 }
 
 export const studentProcedure = authedProcedure.use(requireRole("STUDENT"));
 /** Staff and admins. Counter-level scope is enforced per call by `assertCounterAccess`. */
-export const staffProcedure = authedProcedure.use(requireRole("STAFF", "ADMIN"));
+export const staffProcedure = authedProcedure.use(
+  requireRole("STAFF", "ADMIN")
+);
 export const adminProcedure = authedProcedure.use(requireRole("ADMIN"));
