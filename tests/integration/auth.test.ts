@@ -281,3 +281,37 @@ describeDb("role-based access control", () => {
     );
   });
 });
+
+describeDb("sign-in throttling", () => {
+  beforeEach(resetDatabase);
+
+  it("does not throttle many successful sign-ins from one shared campus IP", async () => {
+    const students = await Promise.all(
+      Array.from({ length: 60 }, () => createUser("STUDENT"))
+    );
+    for (const student of students) {
+      await expect(
+        anonymousCaller().caller.auth.login({
+          email: student.email,
+          password: TEST_PASSWORD,
+        })
+      ).resolves.toMatchObject({ id: student.id });
+    }
+  });
+
+  it("throttles an IP after many failures across accounts", async () => {
+    const { caller } = anonymousCaller();
+    for (let i = 0; i < 50; i++)
+      await expectAppError(
+        caller.auth.login({
+          email: `nobody${i}@test.edu`,
+          password: "Wrong-pass-1",
+        }),
+        "INVALID_CREDENTIALS"
+      );
+    await expectAppError(
+      caller.auth.login({ email: "nobody@test.edu", password: "Wrong-pass-1" }),
+      "RATE_LIMITED"
+    );
+  });
+});
