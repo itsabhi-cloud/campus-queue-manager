@@ -447,6 +447,10 @@ export default function AdminUsers() {
     row: Row;
     to: "ACTIVE" | "SUSPENDED" | "DISABLED";
   } | null>(null);
+  const [roleChange, setRoleChange] = useState<{
+    row: Row;
+    to: "STAFF" | "ADMIN";
+  } | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -473,6 +477,7 @@ export default function AdminUsers() {
   });
   const setRole = trpc.admin.users.setRole.useMutation({
     onSuccess: () => {
+      setRoleChange(null);
       toast.success("Role updated");
       void utils.admin.users.list.invalidate();
     },
@@ -620,9 +625,9 @@ export default function AdminUsers() {
                           value={row.role}
                           disabled={row.id === me?.id || setRole.isPending}
                           onChange={e =>
-                            setRole.mutate({
-                              userId: row.id,
-                              role: e.target.value as "STAFF" | "ADMIN",
+                            setRoleChange({
+                              row,
+                              to: e.target.value as "STAFF" | "ADMIN",
                             })
                           }
                         >
@@ -735,6 +740,29 @@ export default function AdminUsers() {
       <CodeReveal issued={issued} onClose={() => setIssued(null)} />
       <EditUserDialog row={editing} onClose={() => setEditing(null)} />
       <AssignDialog row={assigning} onClose={() => setAssigning(null)} />
+      <ConfirmDialog
+        open={Boolean(roleChange)}
+        onOpenChange={v => !v && setRoleChange(null)}
+        title={
+          roleChange?.to === "ADMIN"
+            ? `Make ${roleChange.row.name} an administrator?`
+            : `Make ${roleChange?.row.name} staff?`
+        }
+        description={
+          roleChange?.to === "ADMIN"
+            ? "Administrators can manage people, services, counters and settings, and operate every counter. They are signed out and must sign in again."
+            : "They lose administrator access and keep only their assigned counters. They are signed out and must sign in again."
+        }
+        confirmLabel={
+          roleChange?.to === "ADMIN" ? "Make administrator" : "Make staff"
+        }
+        tone={roleChange?.to === "ADMIN" ? "danger" : "primary"}
+        busy={setRole.isPending}
+        onConfirm={() =>
+          roleChange &&
+          setRole.mutate({ userId: roleChange.row.id, role: roleChange.to })
+        }
+      />
       <ConfirmDialog
         open={Boolean(statusChange)}
         onOpenChange={v => !v && setStatusChange(null)}

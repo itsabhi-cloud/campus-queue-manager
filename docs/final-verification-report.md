@@ -1,7 +1,8 @@
 # Final verification report
 
-Date: 2026-09-28 · Branch `master` · Base commit `ee9865d`. The final commit (see §26) adds this
-report and the changes listed in it. Environment: macOS (arm64), Node 24.15.0, MySQL 8.0.45 Community,
+Date: 2026-09-28 · Branch `master`. Sections 1–27 were produced on base commit `ee9865d` and committed
+as `3bfbbc0`. The user acceptance pass at the end of this report (sections 28–30) was run on
+`3bfbbc0`, and its fixes are in the commit that follows it (see §26). Environment: macOS (arm64), Node 24.15.0, MySQL 8.0.45 Community,
 in-app Chromium browser pane. Docker is **not installed** on this machine.
 
 Every claim below is labelled:
@@ -378,8 +379,9 @@ browser fetching the COCO-SSD weights from Google's model storage. The productio
 
 ## 25. Final test counts
 
-`npx vitest run`: **13 files, 111 tests, 111 passed, 0 failed, 0 skipped**, against MySQL database
-`queuesense_test`.
+`npx vitest run`: **14 files, 114 tests, 114 passed, 0 failed, 0 skipped**, against MySQL database
+`queuesense_test`. The table lists the 111 tests from the verification pass. The user acceptance pass
+added `client/src/lib/format.test.ts` (3 tests: service wait wording and audit action labels).
 
 | File | Tests |
 | --- | --- |
@@ -401,12 +403,14 @@ Other checks run in this pass:
 
 - `pnpm demo:smoke`: all 12 steps passed.
 - `pnpm verify:model`: pass.
-- axe: 19 screens with 0 violations after the fixes.
+- axe: 19 screens with 0 violations after the fixes. Re-run in the acceptance pass: 27 screens and
+  dialogs, 0 violations (§28).
 
 ## 26. Final git commit
 
-The changes above are committed as one commit on `master`, on top of `ee9865d`. Its hash is reported
-by `git log -1 --oneline`. A commit cannot contain its own hash, so it isn't written here.
+The verification pass is commit `3bfbbc0` (on top of `ee9865d`). The user acceptance pass is one
+further commit on top of `3bfbbc0`; its hash is reported by `git log -1 --oneline`. A commit cannot
+contain its own hash, so it isn't written here.
 
 ## 27. Exact commands used for verification
 
@@ -458,7 +462,8 @@ with `axeSource` loaded from `node_modules/axe-core/axe.min.js` through the Vite
 | Admin | VERIFIED | admin.test, demo-flow metrics = DB counts, axe on 7 screens | None |
 | Staff | VERIFIED | queue/operations tests, demo-flow, axe | None |
 | Student | VERIFIED | queue/student tests, demo-flow, axe | None |
-| Accessibility (automated) | VERIFIED | axe: 19 screens, 0 violations after 2 fixes | Screen-reader session |
+| Accessibility (automated) | VERIFIED | axe: 27 screens and dialogs, 0 violations; dialog focus return fixed and checked by keyboard (§28) | Screen-reader session |
+| Three-role user acceptance | VERIFIED (Chromium) | Hands-on student / staff / admin sessions at the same time, §28–29 | Safari/Firefox, real phones |
 | Responsive UI | VERIFIED (Chromium) | 360–1440 px incl. 1024 this pass | Safari/Firefox not tested |
 | Security | VERIFIED | http/security tests, production header and origin checks | TLS at host |
 | Database | VERIFIED | clean migration ×2 on empty DB, constraint counts, 0 users | Managed MySQL |
@@ -466,3 +471,204 @@ with `axeSource` loaded from `node_modules/axe-core/axe.min.js` through the Vite
 | Admin bootstrap | VERIFIED | migrate → create-admin → activate → sign in on empty DB | None |
 | Docker image | NOT RUN | Dockerfile present | Docker on a build machine |
 | Deployment | PENDING EXTERNAL | checklist §23 | Hosting + MySQL + HTTPS domain |
+
+## 28. Three-Role User Acceptance Test
+
+**Method.** Three signed-in sessions ran at the same time in the in-app Chromium browser, against
+the dev server and freshly seeded demo data. Cookies are per host, so each role used its own origin:
+
+- student `student01` on `localhost:3000`
+- print staff `staff.print` (later `staff.lift`) on `127.0.0.1:3000`
+- admin on `admin.localhost:3000`
+
+Every step was done by clicking and typing in the real UI. Results were read from the other roles'
+screens without reloading. The admin overview reported "Live updates: Connected, 3 open" during the
+test. Credentials come from `scripts/seed-dev.ts` (development only).
+
+### Student: PASS
+
+- **Login:**
+  - A wrong password shows "Incorrect email or password." in a `role="alert"` region.
+  - The correct password lands on *My queues*.
+  - Logout shows "You're signed out. Your tokens stay in their queues".
+  - Protected URLs redirect to `/login?next=…`, and signing in honours `next`.
+- **Dashboard:** *Your tokens* comes first. Each ticket shows:
+  - service and counter
+  - token and status chip
+  - one-line next step
+  - wait countdown
+  - people ahead with position
+  - traffic
+  - Cancel / View details
+
+  With no tokens, it shows "You're not in any queue".
+- **Full service cycle** (join → called → serving → completed): every transition arrived without a
+  refresh:
+  - "Moved up to position 2", then "You're next".
+  - The yellow "Go to Report Counter A now" state.
+  - "You're being served".
+  - "This visit is complete", with a history timeline.
+- **Notification centre:** one entry per real event (joined, wait increased, priority, paused,
+  reopened, moved, called, now serving, completed), with no duplicates. A cancel the student did
+  themselves gives a toast and no notification.
+- **Error states:**
+  - Another student's token, or a missing one, shows "We couldn't find that token", with no
+    existence leak.
+  - `/app/services/library` shows "This service isn't available".
+- **Observations fixed in this pass:** the join banner contradicted the ticket (see B1), and the
+  service cards could say "No wait right now" while people were waiting (B2).
+
+### Staff: PASS
+
+- **Console:** the counter console shows:
+  - counter name and token prefix
+  - Open/Paused/Offline status
+  - a now-serving board with the called token in signal yellow
+  - "N waiting"
+  - Call next as the primary action, with Start serving / Complete / Skip no-show
+  - the waiting list, with priority and cancel icon buttons labelled per token
+  - recent activity and day stats
+- **Actions exercised:** call, start, complete, skip, pause, resume, traffic, priority, and take
+  offline + merge. Each gave a toast and updated the student live.
+- **Confirmations:**
+  - Skip asks "Skip RA002?" with an optional reason.
+  - Pause asks for an optional reason.
+  - Priority requires a reason and says it is audited.
+  - Offline/merge requires a reason, destination and order, and states that nobody loses their place.
+  - Resume applies directly; it isn't destructive.
+- **Scope:**
+  - Staff see only their assigned counters.
+  - Opening `/staff/1` (not assigned) shows only their own counters.
+  - Calling it through the API returns 403 "You are not assigned to this counter."
+  - `/admin` redirects staff to `/staff`.
+- **Camera station** (lift staff):
+  - A clear off state, and "Camera permission was denied…". The pane blocks capture.
+  - "Signal: Stale or offline" until a report arrives.
+  - "Last report: just now / Fresh" after an aggregate report.
+  - The effect-on-estimates line was wrong after a reload (see A2), and the empty-state text was
+    misleading for staff without stations (B5). Both are fixed.
+
+### Admin: PASS
+
+- **Overview:** waiting now, counters open/paused/offline, average wait, completed today, system
+  health (database, live connections, accounts) and *Services today*. The Printing row reflected the
+  scenario (issued, completed, skipped).
+- **Needs attention:** listed the offline counter, heavy traffic and a stale camera as they happened.
+- **Recent operations:** described staff actions in plain language ("Imran Sheikh merged a counter's
+  queue — Printer jam, 3 tokens moved").
+- **People:**
+  - Students and staff tabs, search and status filter.
+  - Row actions labelled per person.
+  - Suspend requires a reason and explains the consequences.
+  - The admin's own role can't be changed.
+  - Role changes had no confirmation (B3); fixed.
+- **Services and counters:** the service → queue group → counter hierarchy with assigned staff; the
+  merged counter shown as Offline.
+- **Import, Settings, Audit:** rendered with their explanations.
+- **Audit log:** showed raw action codes, and its empty states didn't say what is recorded (B4);
+  fixed.
+- **Admin-only pages:** a student opening `/admin/users` or `/staff/7` is redirected to `/app`, and
+  an admin API call from the student session returns 403.
+
+### Cross-role scenario (steps 1–16 of the brief): PASS
+
+The student signed in, opened Printing, chose Report Counter A and joined as RA003 (position 3,
+~14 min). Staff, signed in separately, saw RA003 appear without a refresh, then called RA001 and
+completed it and skipped RA002, which moved the student up. Staff then called, started and completed
+RA003. The student saw each step without a refresh. The admin then saw the counts in *Services today*.
+
+The admin audit log stayed empty for this part, because routine call/serve/complete operations are
+queue events rather than audit entries; this is by design. After the fix, both the audit page and
+*Recent operations* say so. The later priority, traffic, pause and merge steps appeared in the audit
+log with actor, reason and details.
+
+### Mobile and tablet
+
+- **360 px:** the student dashboard, service, token, notifications, profile and history pages have
+  `scrollWidth == innerWidth` (no horizontal scroll) and a bottom tab bar.
+- **390 px:** checked visually.
+- **768 px:** the token page fits.
+- **Admin People at 360 px:** no overflow.
+- **Touch targets:** the only interactive elements under 32 px are radio and checkbox inputs inside
+  full-width clickable cards, and inline text links (exempt under WCAG 2.5.8).
+
+### Accessibility
+
+- **axe-core 4.10.3** (WCAG 2.0/2.1 A and AA, plus best-practice): 0 violations on 27 screens and
+  dialogs.
+  - Student (11): home, the four service pages, the called ticket, the ticket with the join banner,
+    the cancel dialog, history, notifications, profile.
+  - Staff (4): the busy counter board, the offline/merge dialog, the camera page, the called-token
+    board.
+  - Admin (8): overview, live queues, audit, services, import, settings, people, the new role dialog.
+  - Public (4): landing, sign-in, activation, 404.
+- **Keyboard:**
+  - Tab order on sign-in is logo → email → password.
+  - Escape closes dialogs.
+  - After the A1 fix, focus returns to the button that opened the dialog, with a visible focus ring.
+    This was checked on Suspend, Cancel token, Take offline or merge, and the role select.
+- **Status announcements:** ticket change cues and the connection badge are `role="status"` live
+  regions, and toasts are announced.
+- **Screen reader:** no screen-reader session was performed. This is external/manual verification.
+
+### Security during the UX pass
+
+- No server code changed in the acceptance pass; every fix is presentation-only.
+- Role changes still go through `admin.users.setRole` (admin-only, audited, sessions revoked); the
+  dialog only adds a confirmation step.
+- The production bundle contains no development credentials (`grep` for the seed passwords and the
+  `queuesense.dev` domain in `dist/` finds nothing).
+- The seed refuses to run when `NODE_ENV=production`.
+
+## 29. Service UX Acceptance
+
+| Service | Result | Observations |
+| --- | --- | --- |
+| Administration | PASS | Each sub-service states its purpose ("Fee payments, receipts and scholarship queries", "Bonafide, transcripts and conduct certificates", "Enrolment, ID cards and student records"). *Any open counter* is the default and placed the student in the shorter line (Desk 2, G002). Cancel asks "Cancel token G002? You'll lose your place…", then shows "Cancelled by student", a toast and history. |
+| Printing | PASS | Xerox, Colour Printing and Report / Bulk Printing each show the wait "if you join now", jobs waiting, traffic and every counter with its own line and status. Traffic ("Wait up about 7 min: Printer jam"), priority ("Moved up to position 1") and pause ("Report Counter B is paused — Refilling paper… You keep your place") reached the student live. The merge was explained, not silent: "Report Counter B became unavailable. Your token continues at Report Counter A. Your place was kept, not reset", plus "Moved to Report Counter A, position 1" and a notification with the reason. |
+| Cafeteria | PASS | The page states "QueueSense manages your place in line only. Ordering and payment happen at the counter." The button is "Reserve my place". The join banner says "You've reserved your place, not an order", and the ticket says "Head to the cafeteria counter so you're ready to order". Nothing implies food ordering. |
+| Elevator / Lift | PASS | "QueueSense estimates lift traffic and manages a virtual boarding queue. It does not control the lifts." Lift 1 and Lift 2 show "Estimated wait to board", riders waiting, "Boards up to 8 at a time" and a *traffic estimate* badge. With a stale camera the student sees "Camera offline — using queue data only". After an aggregate report it changed live to "Moderate traffic estimate · About 14 people nearby, just now". Live webcam detection was not possible (the browser pane blocks capture). |
+
+## 30. Recommended Improvements Before Submission
+
+### Found and fixed in this pass
+
+| # | Type | Issue | Fix |
+| --- | --- | --- | --- |
+| A1 | Bug (accessibility) | Every confirmation dialog dropped keyboard focus to `<body>` on close. The dialogs are opened from state, so Radix had no trigger to return to. | `Dialog` remembers the focused element on open and restores it on close. Verified by keyboard on four dialogs. |
+| A2 | Bug | The camera station said "Effect on wait estimates: None at normal crowding" after a reload, even when the last report (14 people) had raised traffic to moderate. The line used only reports made by that browser tab. | The level is derived from the server's last count with the same thresholds as the server. Now reads "Raising Lift 1 to moderate traffic". |
+| B1 | UX | The "You're in… You can leave the line now" banner stayed visible while the ticket said "Start heading to…" or "Go to … now". | The banner shows only while waiting, and its second line matches the ticket state (leave the line / stay nearby / counter paused or offline). |
+| B2 | UX | Service cards said "3 waiting · No wait right now", because the minimum across queue groups was shown without context. | "Shortest wait under 1 min / about N min"; "No wait right now" only when nobody is waiting. Unit-tested. |
+| B3 | UX / safety | Changing a role (Staff ↔ Admin) applied immediately on select change, with no confirmation. | A confirmation explains what administrators can do and that the person is signed out. Cancelling leaves the role unchanged (verified). |
+| B4 | UX | The audit log showed raw codes (`queue.merged`), and its empty state (and "No operations recorded yet" on the overview) didn't explain that routine calls and completions are not audit entries. | Plain-language action labels (shared with the overview) with the code underneath. Both empty states explain what is recorded and where routine operations appear. |
+| B5 | UX | Staff with no stations in scope saw "No camera stations yet — An administrator can add one", although stations existed elsewhere. | Staff see "No camera stations for your counters"; admins keep the original text. |
+
+### REQUIRED before submission
+
+None outstanding. All A and B items above are fixed and were re-verified in the browser.
+
+### RECOMMENDED
+
+- Rehearse the demo with three hosts (student `localhost:3000`, staff `127.0.0.1:3000`, admin
+  `admin.localhost:3000`) or three browsers. Run `pnpm db:reset:dev` beforehand, never during the
+  demo.
+- For the camera segment, use a laptop webcam over `localhost` or HTTPS. This is the only way to
+  show live detection, and it has not been verified here.
+
+### OPTIONAL (polish, not implemented; nothing is incomplete without them)
+
+- Auto-focus the email field on the sign-in page.
+- Show a waiting count on the staff counter-picker cards.
+- "3 token(s)" wording in the offline/merge dialog.
+- The "Your turn" filter tab wraps onto two lines at 360 px on Notifications.
+- Hide the last change cue ("Wait down about 7 min…") once a token is called or being served.
+- The screen-reader-only legend "Choose a counter for Lift 1" uses "counter" for a lift boarding point.
+- Plain-language entity names in the audit log (it shows `counter #8`).
+
+### External / manual verification still pending
+
+- A screen-reader session (VoiceOver or NVDA).
+- Live webcam detection.
+- A native OS notification with permission granted.
+- Safari, Firefox and real phones.
+- Building the Docker image, and a hosted HTTPS deployment (§23).

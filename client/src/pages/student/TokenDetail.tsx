@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { ArrowLeft, CheckCircle2, SearchX } from "lucide-react";
-import { TokenTicket } from "@/components/queue/TokenTicket";
+import { TokenTicket, variantOf } from "@/components/queue/TokenTicket";
 import {
   EmptyState,
   ErrorState,
@@ -77,7 +77,8 @@ export default function TokenDetail({ id }: { id: string }) {
       <Link href="/app" className="back-link">
         <ArrowLeft size={16} aria-hidden /> Your tokens
       </Link>
-      {justJoined && live && (
+      {/* Only while waiting: once called, the ticket's own instruction takes over. */}
+      {justJoined && live && live.status === "WAITING" && (
         <div className="joined-banner" role="status">
           <CheckCircle2 size={28} aria-hidden />
           <div>
@@ -88,8 +89,17 @@ export default function TokenDetail({ id }: { id: string }) {
               {live.service.kind === "CAFETERIA"
                 ? "You've reserved your place, not an order. "
                 : ""}
-              You can leave the line now. We'll alert you when your turn is
-              close.
+              {
+                {
+                  waiting:
+                    "You can leave the line now. We'll alert you when your turn is close.",
+                  almost: "Your turn is close, so stay nearby.",
+                  paused: "The counter is paused; you keep your place.",
+                  offline: "The counter is offline; you keep your place.",
+                  called: "",
+                  serving: "",
+                }[variantOf(live)]
+              }
             </p>
           </div>
           <button

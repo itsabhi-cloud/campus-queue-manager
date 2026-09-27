@@ -7,6 +7,7 @@ import {
   PageHeader,
   Pagination,
 } from "@/components/ui/primitives";
+import { actionLabel } from "@/lib/auditText";
 import { errorMessage } from "@/lib/errors";
 import { dateTime } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
@@ -82,7 +83,11 @@ export default function AdminAudit() {
         />
       ) : logs.data!.rows.length === 0 ? (
         <div className="panel">
-          <EmptyState icon={ClipboardList} title="No audit entries" />
+          <EmptyState
+            icon={ClipboardList}
+            title="No audit entries"
+            description="Administrative changes appear here: priority, merges, cancellations, counter status, traffic, accounts and settings. Routine calls and completions are shown in each counter's activity."
+          />
         </div>
       ) : (
         <div className="panel">
@@ -117,7 +122,10 @@ export default function AdminAudit() {
                       )}
                     </td>
                     <td data-label="Action">
-                      <code>{log.action}</code>
+                      {actionLabel(log.action)}
+                      <small className="block muted">
+                        <code>{log.action}</code>
+                      </small>
                     </td>
                     <td data-label="Entity">
                       {log.entityType}

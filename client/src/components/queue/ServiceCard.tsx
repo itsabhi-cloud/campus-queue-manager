@@ -2,19 +2,11 @@ import { Link } from "wouter";
 import { ChevronRight } from "lucide-react";
 import type { TrafficLevel } from "@shared/domain";
 import { Chip, ServiceIcon, TrafficBadge } from "@/components/ui/primitives";
-import { approxMinutes } from "@/lib/format";
+import { serviceWaitText } from "@/lib/format";
 import type { RouterOutputs } from "@/lib/trpc";
 
 type CatalogService = RouterOutputs["catalog"]["list"]["services"][number];
 const ORDER: TrafficLevel[] = ["NORMAL", "MODERATE", "HEAVY"];
-
-function waitText(estimates: number[]) {
-  if (estimates.length === 0) return "No estimate";
-  const best = Math.min(...estimates);
-  return best < 60
-    ? "No wait right now"
-    : `About ${approxMinutes(best).replace("~", "")} wait`;
-}
 
 export function ServiceCard({
   service,
@@ -52,7 +44,7 @@ export function ServiceCard({
         ) : (
           <>
             <span className="num">{waiting} waiting</span>
-            <span>{waitText(estimates)}</span>
+            <span>{serviceWaitText(estimates, waiting)}</span>
             <TrafficBadge
               level={traffic}
               label={
