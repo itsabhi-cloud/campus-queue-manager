@@ -65,6 +65,13 @@
 - 240 mutations per user per minute; camera reports ≤ 40 per station per minute.
 - Per-counter queue limit and per-student active-token limit (admin setting).
 
+## Production configuration guards
+
+- The server refuses to start in production unless `APP_ORIGIN` is a public `https://` origin (not
+  `localhost`). `ALLOW_INSECURE_ORIGIN=true` exists only for running a production build locally.
+- Malformed JSON bodies get `400 Malformed request body.`, oversized bodies `413`; neither is logged
+  as a server error, and no response includes stack traces, SQL or file paths.
+
 ## Secrets
 
 `.env` is git-ignored; `.env.example` has placeholders only. `AUTH_SECRET` (≥ 32 chars) is required
@@ -77,3 +84,5 @@ and validated at startup. Nothing secret is exposed to the client bundle (no `VI
 - No email delivery is built in: activation codes are distributed by the institution (the import
   produces a CSV of codes). Integrating an SMTP provider would allow self-service password reset.
 - No MFA for administrators.
+- Development seed credentials live in `scripts/seed-dev.ts` by design (local testing only; the seed
+  refuses to run with `NODE_ENV=production`, and production databases start with zero users).

@@ -1,5 +1,7 @@
 # Verification status
 
+> Superseded by [final-readiness-audit.md](final-readiness-audit.md) and [final-test-matrix.md](final-test-matrix.md) (2026-09-28). Kept for history.
+
 Last full verification: 2026-09-28, macOS, Node 24.15, MySQL 8.0.45, local only.
 
 Legend — **Verified (auto)**: covered by `pnpm test` against a real MySQL test database.

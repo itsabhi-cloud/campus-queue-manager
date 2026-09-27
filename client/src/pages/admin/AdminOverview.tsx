@@ -151,7 +151,10 @@ function RecentOperations() {
       {logs.isLoading ? (
         <LoadingBlock rows={1} />
       ) : logs.error ? (
-        <ErrorState message={errorMessage(logs.error)} onRetry={() => logs.refetch()} />
+        <ErrorState
+          message={errorMessage(logs.error)}
+          onRetry={() => logs.refetch()}
+        />
       ) : !logs.data || logs.data.rows.length === 0 ? (
         <p className="muted">No operations recorded yet.</p>
       ) : (
@@ -335,7 +338,12 @@ export default function AdminOverview() {
 
       <section className="panel" aria-labelledby="services-title">
         <PanelHead id="services-title" title="Services today" />
-        <div className="table-wrap">
+        <div
+          className="table-wrap"
+          tabIndex={0}
+          role="region"
+          aria-label="Services today"
+        >
           <table className="data-table stack">
             <thead>
               <tr>

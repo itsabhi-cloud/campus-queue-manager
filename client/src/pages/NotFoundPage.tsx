@@ -1,9 +1,13 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { BrandMark } from "@/components/AppShell";
 
 export default function NotFoundPage() {
+  useEffect(() => {
+    document.title = "Page not found · QueueSense";
+  }, []);
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="auth-card">
         <BrandMark />
         <h1>This page doesn't exist</h1>
@@ -14,6 +18,6 @@ export default function NotFoundPage() {
           Go to QueueSense
         </Link>
       </div>
-    </div>
+    </main>
   );
 }

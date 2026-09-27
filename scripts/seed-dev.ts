@@ -239,13 +239,11 @@ async function main() {
         passwordUpdatedAt: now,
       })
       .$returningId();
-    await tx
-      .insert(staffProfiles)
-      .values({
-        userId: admin.id,
-        employeeId: "ADM-001",
-        designation: "Operations Administrator",
-      });
+    await tx.insert(staffProfiles).values({
+      userId: admin.id,
+      employeeId: "ADM-001",
+      designation: "Operations Administrator",
+    });
 
     const staffSeed = [
       {
@@ -290,13 +288,11 @@ async function main() {
           passwordUpdatedAt: now,
         })
         .$returningId();
-      await tx
-        .insert(staffProfiles)
-        .values({
-          userId: row.id,
-          employeeId: staff.employeeId,
-          designation: staff.designation,
-        });
+      await tx.insert(staffProfiles).values({
+        userId: row.id,
+        employeeId: staff.employeeId,
+        designation: staff.designation,
+      });
       staffIds.set(staff.key, row.id);
     }
 
@@ -344,13 +340,11 @@ async function main() {
             })
             .$returningId();
           counterIds[counter.prefix] = ctr.id;
-          await tx
-            .insert(staffCounterAssignments)
-            .values({
-              staffUserId: staffIds.get(service.kind)!,
-              counterId: ctr.id,
-              assignedByUserId: admin.id,
-            });
+          await tx.insert(staffCounterAssignments).values({
+            staffUserId: staffIds.get(service.kind)!,
+            counterId: ctr.id,
+            assignedByUserId: admin.id,
+          });
         }
       }
     }
@@ -389,14 +383,12 @@ async function main() {
           passwordUpdatedAt: now,
         })
         .$returningId();
-      await tx
-        .insert(studentProfiles)
-        .values({
-          userId: row.id,
-          collegeId: `QS24CS${String(100 + i)}`,
-          department: DEPARTMENTS[i % DEPARTMENTS.length],
-          phone: `+91 98450 ${String(10000 + i * 137).slice(0, 5)}`,
-        });
+      await tx.insert(studentProfiles).values({
+        userId: row.id,
+        collegeId: `QS24CS${String(100 + i)}`,
+        department: DEPARTMENTS[i % DEPARTMENTS.length],
+        phone: `+91 98450 ${String(10000 + i * 137).slice(0, 5)}`,
+      });
       students.push({
         id: row.id,
         email,
@@ -418,13 +410,11 @@ async function main() {
           status: "PENDING",
         })
         .$returningId();
-      await tx
-        .insert(studentProfiles)
-        .values({
-          userId: row.id,
-          collegeId: `QS24CS${100 + i}`,
-          department: "Computer Science",
-        });
+      await tx.insert(studentProfiles).values({
+        userId: row.id,
+        collegeId: `QS24CS${100 + i}`,
+        department: "Computer Science",
+      });
       const { code } = await issueAuthCode(tx, row.id, "ACTIVATION", admin.id);
       pendingCodes.push(`${email}  ${code}`);
     }

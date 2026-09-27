@@ -205,7 +205,12 @@ export default function AdminImport() {
             />{" "}
             Show only rows with problems
           </label>
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            tabIndex={0}
+            role="region"
+            aria-label="Import preview"
+          >
             <table className="data-table stack">
               <thead>
                 <tr>

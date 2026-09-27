@@ -689,7 +689,7 @@ export default function AdminCatalog() {
   return (
     <>
       <PageHeader
-        title="Services & counters"
+        title="Services and counters"
         subtitle="Students see exactly what you set up here. Changes apply immediately."
         actions={
           <button
@@ -800,7 +800,12 @@ export default function AdminCatalog() {
                   </button>
                 </div>
               </div>
-              <div className="table-wrap">
+              <div
+                className="table-wrap"
+                tabIndex={0}
+                role="region"
+                aria-label={`${group.name} counters`}
+              >
                 <table className="data-table compact stack">
                   <thead>
                     <tr>
@@ -828,16 +833,18 @@ export default function AdminCatalog() {
                           className={counter.isActive ? "" : "row-muted"}
                         >
                           <th scope="row">{counter.name}</th>
-                          <td>{counter.tokenPrefix}</td>
-                          <td>
+                          <td data-label="Prefix">{counter.tokenPrefix}</td>
+                          <td data-label="Status">
                             {counter.isActive ? (
                               <CounterBadge status={counter.status} />
                             ) : (
                               "Inactive"
                             )}
                           </td>
-                          <td>{counter.activeEntries}</td>
-                          <td>
+                          <td data-label="Active tokens">
+                            {counter.activeEntries}
+                          </td>
+                          <td data-label="Staff">
                             {counter.staff.map(s => s.name).join(", ") || (
                               <span className="muted">Unassigned</span>
                             )}
@@ -887,7 +894,12 @@ export default function AdminCatalog() {
             one.
           </p>
         ) : (
-          <div className="table-wrap">
+          <div
+            className="table-wrap"
+            tabIndex={0}
+            role="region"
+            aria-label="Camera stations"
+          >
             <table className="data-table compact stack">
               <thead>
                 <tr>
@@ -906,10 +918,10 @@ export default function AdminCatalog() {
                     className={row.station.isActive ? "" : "row-muted"}
                   >
                     <th scope="row">{row.station.name}</th>
-                    <td>
+                    <td data-label="Queue">
                       {row.serviceName} · {row.groupName}
                     </td>
-                    <td>
+                    <td data-label="Last report">
                       {row.station.lastReportedAt
                         ? `${row.station.lastPeopleCount ?? 0} people · ${relativeTime(row.station.lastReportedAt)}`
                         : "Never"}

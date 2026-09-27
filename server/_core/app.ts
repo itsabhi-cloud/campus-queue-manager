@@ -127,13 +127,18 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ) {
+  const type = (error as { type?: string }).type;
+  // Client mistakes (bad JSON, oversized bodies) are 4xx and are not logged as server errors.
+  if (type === "entity.parse.failed") {
+    if (!res.headersSent)
+      res.status(400).json({ error: "Malformed request body." });
+    return;
+  }
+  if (type === "entity.too.large") {
+    if (!res.headersSent) res.status(413).json({ error: "Request too large." });
+    return;
+  }
   logger.error("Unhandled HTTP error", { error });
   if (res.headersSent) return;
-  const status =
-    (error as { status?: number; type?: string }).type === "entity.too.large"
-      ? 413
-      : 500;
-  res.status(status).json({
-    error: status === 413 ? "Request too large." : "Something went wrong.",
-  });
+  res.status(500).json({ error: "Something went wrong." });
 }

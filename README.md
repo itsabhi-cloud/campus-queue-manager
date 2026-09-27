@@ -22,6 +22,15 @@ losing your place.
 - Give administrators central control of services, people, analytics and an audit trail.
 - Estimate physical congestion with privacy-preserving computer vision, without identifying anyone.
 
+## Solution
+
+A student takes a digital token on their phone and walks away. The server holds their place,
+computes their position and an explainable wait estimate, and pushes every change live: when the
+line moves, when traffic slows it down, when a counter fails and its line is merged into another,
+and when it is their turn. Staff run each counter from a console; administrators manage services,
+people and policy centrally. Optional camera stations measure crowding near a counter without
+identifying anyone.
+
 It covers four campus services — **Administration, Printing, Cafeteria and Elevator/Lift** — with
 one configurable queue engine (no per-service code paths).
 
@@ -45,28 +54,26 @@ one configurable queue engine (no per-service code paths).
 | Notifications | Joined, almost-next, called, serving, completed, skipped, cancelled, merged, priority, position change, wait increased/decreased, counter paused/offline/resumed — with per-student preferences |
 | Computer vision | TensorFlow.js + COCO-SSD in the browser, person-only, ROI filter, median smoothing, aggregate-only reporting, stale detection |
 
-## Demo script (about 5 minutes)
+## Demo script (5–7 minutes)
 
-Seed demo data with `pnpm db:reset:dev`, run `pnpm dev`, and use two browsers (or one normal and
-one private window) because accounts in the same browser share a session. Development logins are
-listed at the top of `scripts/seed-dev.ts`.
+**Before the demo** (not during it): run `pnpm db:reset:dev`. It rebuilds the demo data and **signs
+everyone out**. Start `pnpm dev` and use two browsers (or one normal and one private window),
+because accounts in the same browser share a session. Development logins are listed at the top of
+`scripts/seed-dev.ts`. `pnpm demo:smoke` runs the same flow automatically as a pre-flight check
+(then reseed again).
 
-1. **Student** (`student09@queuesense.dev`): open *Campus services*, pick *Printing*, choose
-   *Report / Bulk Printing*, *Report Counter B*, and press **Get a print token**. The "You're in"
-   banner and the ticket appear with position, people ahead and a live estimated wait.
-2. **Staff** (`staff.print@queuesense.dev`, second browser): open *Report Counter B* and press
-   **Call next**. The student's ticket updates without a refresh ("Moved up to position 2").
-3. Staff: **Adjust traffic** to *Heavy* with a 5-minute delay and a reason. The student sees
-   "Wait up about … min: Lunch rush" and gets a notification explaining the increase.
-4. Staff: give a waiting token **priority** with a reason. Affected students see their new
-   position and a "Queue order was updated" notification.
-5. Staff: **Take offline or merge** on Report Counter B, merging into Counter A. The student's
-   ticket shows "Report Counter B became unavailable… Your place was kept" and the new position.
-6. **Camera station** (`staff.lift@queuesense.dev`): start the camera for the lift lobby to
-   report an aggregate head count (needs a webcam; see docs/computer-vision.md).
-7. **Admin** (`admin@queuesense.dev`): the overview's *Needs attention* list shows the offline
-   counter and heavy traffic, and *Recent operations* lists the priority, traffic and merge actions.
-8. When staff call the student, the ticket turns signal yellow: "Go to Report Counter A now".
+| Time | Show | Where |
+| --- | --- | --- |
+| 0:00 | The problem: students stand in campus lines without knowing how long they'll wait. | Landing page |
+| 0:30 | **Student** (`student09@queuesense.dev`) opens *Administration → Accounts & Fees* and presses **Get a token**. The "You're in" banner and ticket appear (token, people ahead, estimated wait). | Browser A |
+| 1:00 | The student can leave the line: point at the live countdown and queue line. Also join *Printing → Report / Bulk Printing → Report Counter B* to show several active queues at once. | Browser A |
+| 1:30 | **Staff** (`staff.admin@queuesense.dev`) opens the Accounts desk shown on the student's ticket and presses **Call next**. The ticket updates without refresh ("Moved up to position…"). | Browser B → A |
+| 2:00 | Staff: **Adjust traffic** → Heavy, +5 min, "Lunch rush". The ticket shows "Wait up about … min: Lunch rush" and a notification explains it. | B → A |
+| 2:30 | Switch staff to `staff.print@queuesense.dev`, open *Report Counter B* and give the student's RB token **priority** with a reason ("Exam submission in 15 min"). The ticket shows *Priority* and "Moved up to position 1"; the students behind get "Queue order was updated…". | B → A |
+| 3:15 | Same staff: **Take offline or merge** on Report Counter B into Counter A ("Printer jam"). The student's RB ticket shows "Report Counter B became unavailable… Your place was kept" with the new position. | B → A |
+| 4:00 | **Camera station** (`staff.lift@queuesense.dev`, needs a webcam): aggregate head count and traffic level; privacy note. Without a camera, show the honest "Camera unavailable" state and explain queues work without it. | B |
+| 4:45 | **Admin** (`admin@queuesense.dev`): *Needs attention* (offline counter, heavy traffic) and *Recent operations* (priority, traffic, merge). | B |
+| 5:30 | Architecture and security: server as the source of truth, SSE realtime, row-locked transactions, RBAC, privacy-preserving CV. Finish by calling the student: the ticket turns yellow, "Go to … now". | Slides / docs |
 
 ## Architecture at a glance
 
@@ -79,7 +86,7 @@ React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queu
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
 [docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
-[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/STATUS.md](docs/STATUS.md) (what is verified) ·
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/final-readiness-audit.md](docs/final-readiness-audit.md) · [docs/final-test-matrix.md](docs/final-test-matrix.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) ·
 [docs/AUDIT.md](docs/AUDIT.md) (starting-point audit)
 
 ## Technology
@@ -135,13 +142,14 @@ refuses to run with `NODE_ENV=production`; production never depends on demo acco
 | --- | --- | --- |
 | `DATABASE_URL` | yes | `mysql://user:pass@host:3306/db` (URL-encode special characters) |
 | `AUTH_SECRET` | yes | ≥ 32 random characters; HMAC key for session tokens and activation codes |
-| `APP_ORIGIN` | production | Public origin, used for the CSRF origin check |
+| `APP_ORIGIN` | production | Public `https://` origin (production refuses `http://` or localhost); used for the CSRF origin check |
 | `CAMPUS_TIMEZONE` | no (`Asia/Kolkata`) | IANA zone for daily token numbering and hourly analytics |
 | `PORT` | no (`3000`) | HTTP port |
 | `SESSION_TTL_HOURS` | no (`168`) | Session lifetime |
 | `TRUST_PROXY` | behind a proxy | Express `trust proxy` value so client IPs (rate limits) are correct |
 | `LOG_LEVEL` | no (`info`) | `debug` · `info` · `warn` · `error` |
-| `TEST_DATABASE_URL` | tests | Database wiped and rebuilt by `pnpm test` |
+| `TEST_DATABASE_URL` | tests | Database wiped and rebuilt by `pnpm test` (name must end in `_test`) |
+| `ALLOW_INSECURE_ORIGIN` | no | `true` only to run a production build locally over `http://localhost` |
 
 The server validates these at startup and exits with a clear message if they're wrong.
 
@@ -157,7 +165,9 @@ The server validates these at startup and exits with a clear message if they're 
 | `pnpm db:generate` | Generate a migration after changing `drizzle/schema.ts` |
 | `pnpm db:migrate` | Apply migrations to `DATABASE_URL` |
 | `pnpm db:seed:dev` / `pnpm db:reset:dev` | Seed (or wipe and reseed) development data |
-| `pnpm admin:create` | Create/bootstrap an administrator in any environment |
+| `pnpm admin:create` | Create/bootstrap an administrator (development, via tsx) |
+| `node dist/migrate.js` / `node dist/create-admin.js` | The same two tasks from the production build (no dev dependencies) |
+| `pnpm demo:smoke` | Runs the demo flow against a running, freshly seeded dev server (development only) |
 | `pnpm format` | Prettier |
 
 ## Roles
@@ -178,7 +188,32 @@ time of the current service + staff delay`. Details and assumptions: [docs/queue
 
 ## Testing
 
-`pnpm test` runs 87 tests: pure logic (state machine, ordering/merge strategies, estimation,
+`pnpm test` runs 101 tests: pure logic (state machine, ordering/merge strategies, estimation,
 passwords, tokens, CSV, rate limiting, camera ROI/smoothing) and integration tests against a real
 MySQL database (auth, RBAC, object-level authorization, 25 concurrent joins, duplicate-join races,
 priority, merges, traffic, notifications, imports, SSE delivery over HTTP, security headers).
+
+## Deployment
+
+One long-lived Node process (API + SSE + static client) and a MySQL 8 database. Use a container/VM
+host with long-lived HTTP connections (not serverless functions), one instance, HTTPS in front.
+A `Dockerfile` is included. Steps, platform guidance and what was verified locally:
+[docs/deployment.md](docs/deployment.md).
+
+## Notifications
+
+- **In-app**: persisted notification center plus live toasts over SSE (implemented and verified).
+- **Browser notifications**: optional, via the Notification API when the tab is in the background and
+  the user allowed it (implemented; only the "blocked" path has been tested).
+- **Email/SMS**: not implemented. Activation and password-reset codes are issued by administrators.
+
+## Limitations
+
+- Wait times are heuristic estimates (see docs/queue-engine.md), not appointments.
+- Single API instance: realtime fan-out and rate limits are in memory.
+- No email delivery, self-service password reset, or administrator MFA.
+- Live webcam detection has not been tested on a physical camera in this environment.
+- No dark mode; no native mobile app (the web app is responsive and works on phones).
+- Automated accessibility checks pass (axe-core); a full screen-reader session has not been done.
+
+See [docs/final-readiness-audit.md](docs/final-readiness-audit.md) for exactly what was verified.

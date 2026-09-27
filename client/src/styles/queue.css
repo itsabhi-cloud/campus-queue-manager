@@ -556,3 +556,6 @@
   font-weight: 700;
   color: var(--violet-strong) !important;
 }
+.ticket-line-row {
+  padding: 0 var(--s-5) var(--s-4);
+}

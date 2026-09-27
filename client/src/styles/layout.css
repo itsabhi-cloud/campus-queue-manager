@@ -809,3 +809,9 @@
     padding: var(--s-5);
   }
 }
+@media (max-width: 720px) {
+  .board {
+    min-height: 0;
+    padding: var(--s-4);
+  }
+}

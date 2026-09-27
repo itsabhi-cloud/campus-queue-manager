@@ -38,7 +38,7 @@ export default function Activate() {
   };
 
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <form className="auth-card" onSubmit={submit} noValidate>
         <BrandMark />
         <div>
@@ -123,6 +123,6 @@ export default function Activate() {
           </span>
         </div>
       </form>
-    </div>
+    </main>
   );
 }
