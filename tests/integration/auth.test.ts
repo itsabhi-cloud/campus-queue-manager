@@ -315,3 +315,43 @@ describeDb("sign-in throttling", () => {
     );
   });
 });
+
+describeDb("password reset and session invalidation", () => {
+  beforeEach(resetDatabase);
+
+  it("resets a forgotten password with an admin-issued code and signs out old sessions", async () => {
+    const admin = await createUser("ADMIN");
+    const student = await createUser("STUDENT");
+    const old = anonymousCaller();
+    await old.caller.auth.login({ email: student.email, password: TEST_PASSWORD });
+    const issued = await callerFor(admin).admin.users.issueCode({ userId: student.id });
+    expect(issued.purpose).toBe("RESET");
+    await anonymousCaller().caller.auth.activate({ email: student.email, code: issued.code, password: "Brand-new-secret-7" });
+    expect(await (await callerFromCookie(old.http.cookies[0].value)).auth.me()).toBeNull();
+    await expectAppError(anonymousCaller().caller.auth.login({ email: student.email, password: TEST_PASSWORD }), "INVALID_CREDENTIALS");
+    await expect(anonymousCaller().caller.auth.login({ email: student.email, password: "Brand-new-secret-7" })).resolves.toMatchObject({ id: student.id });
+    // A reset code works once and only for its own account.
+    await expectAppError(anonymousCaller().caller.auth.activate({ email: student.email, code: issued.code, password: "Another-secret-8" }), "INVALID_CODE");
+  });
+
+  it("rejects a code presented with a different account's email", async () => {
+    const admin = await createUser("ADMIN");
+    const [a, b] = [await createUser("STUDENT"), await createUser("STUDENT")];
+    const issued = await callerFor(admin).admin.users.issueCode({ userId: a.id });
+    await expectAppError(anonymousCaller().caller.auth.activate({ email: b.email, code: issued.code, password: "Takeover-attempt-1" }), "INVALID_CODE");
+  });
+
+  it("refuses codes for suspended accounts and ends sessions when a role changes", async () => {
+    const admin = await createUser("ADMIN");
+    const student = await createUser("STUDENT");
+    const issued = await callerFor(admin).admin.users.issueCode({ userId: student.id });
+    await callerFor(admin).admin.users.setStatus({ userId: student.id, status: "SUSPENDED", reason: "Review" });
+    await expectAppError(anonymousCaller().caller.auth.activate({ email: student.email, code: issued.code, password: "Brand-new-secret-7" }), "ACCOUNT_INACTIVE");
+
+    const staff = await createUser("STAFF");
+    const login = anonymousCaller();
+    await login.caller.auth.login({ email: staff.email, password: TEST_PASSWORD });
+    await callerFor(admin).admin.users.setRole({ userId: staff.id, role: "ADMIN" });
+    expect(await (await callerFromCookie(login.http.cookies[0].value)).auth.me()).toBeNull();
+  });
+});

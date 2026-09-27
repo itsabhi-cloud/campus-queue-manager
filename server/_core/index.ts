@@ -37,7 +37,8 @@ async function start() {
 
   server.listen(ENV.PORT, () => {
     logger.info("QueueSense listening", {
-      url: `http://localhost:${ENV.PORT}/`,
+      port: ENV.PORT,
+      origin: ENV.APP_ORIGIN ?? `http://localhost:${ENV.PORT}`,
       env: ENV.NODE_ENV,
     });
   });

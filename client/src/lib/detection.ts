@@ -54,3 +54,19 @@ export function median(values: number[]): number {
     ? sorted[mid]
     : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
+
+/** Turns a getUserMedia failure into an actionable message. Camera access requires a secure context. */
+export function describeCameraError(
+  error: unknown,
+  secureContext: boolean
+): string {
+  const name = (error as { name?: string })?.name;
+  if (!secureContext) return "Camera access needs HTTPS (or localhost).";
+  if (name === "NotAllowedError")
+    return "Camera permission was denied. Allow camera access in your browser settings to use this station.";
+  if (name === "NotFoundError" || name === "OverconstrainedError")
+    return "No camera was found on this device.";
+  if (name === "NotReadableError")
+    return "The camera is in use by another application.";
+  return "The camera couldn't be started.";
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { median, peopleInRoi } from "./detection";
+import { describeCameraError, median, peopleInRoi } from "./detection";
 
 describe("camera detection helpers", () => {
   const frame = { width: 100, height: 100 };
@@ -25,5 +25,29 @@ describe("camera detection helpers", () => {
     expect(median([3, 3, 9, 3, 2])).toBe(3);
     expect(median([2, 4])).toBe(3);
     expect(median([])).toBe(0);
+  });
+});
+
+describe("camera failure messages", () => {
+  const err = (name: string) => Object.assign(new Error(name), { name });
+  it("explains each getUserMedia failure", () => {
+    expect(describeCameraError(err("NotAllowedError"), true)).toMatch(
+      /permission was denied/
+    );
+    expect(describeCameraError(err("NotFoundError"), true)).toMatch(
+      /No camera was found/
+    );
+    expect(describeCameraError(err("OverconstrainedError"), true)).toMatch(
+      /No camera was found/
+    );
+    expect(describeCameraError(err("NotReadableError"), true)).toMatch(
+      /in use by another application/
+    );
+    expect(describeCameraError(err("AbortError"), true)).toBe(
+      "The camera couldn't be started."
+    );
+  });
+  it("requires a secure context before anything else", () => {
+    expect(describeCameraError(err("NotAllowedError"), false)).toMatch(/HTTPS/);
   });
 });

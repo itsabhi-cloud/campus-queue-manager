@@ -26,6 +26,7 @@ import {
   TrafficBadge,
 } from "@/components/ui/primitives";
 import {
+  describeCameraError,
   median,
   peopleInRoi,
   type Box,
@@ -46,19 +47,6 @@ type Phase = "idle" | "requesting" | "loading-model" | "running" | "error";
 const DETECT_EVERY_MS = 700;
 const REPORT_EVERY_MS = 5000;
 const SMOOTHING_WINDOW = 7;
-
-function describeCameraError(error: unknown): string {
-  const name = (error as { name?: string })?.name;
-  if (!window.isSecureContext)
-    return "Camera access needs HTTPS (or localhost).";
-  if (name === "NotAllowedError")
-    return "Camera permission was denied. Allow camera access in your browser settings to use this station.";
-  if (name === "NotFoundError" || name === "OverconstrainedError")
-    return "No camera was found on this device.";
-  if (name === "NotReadableError")
-    return "The camera is in use by another application.";
-  return "The camera couldn't be started.";
-}
 
 function drawOverlay(
   canvas: HTMLCanvasElement,
@@ -185,7 +173,7 @@ function StationRunner({
     } catch (error) {
       stop();
       setPhase("error");
-      setProblem(describeCameraError(error));
+      setProblem(describeCameraError(error, window.isSecureContext));
       return;
     }
     try {

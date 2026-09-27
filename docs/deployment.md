@@ -23,7 +23,9 @@ node dist/index.js              # with NODE_ENV=production and the variables bel
 ```
 
 The bundled `migrate.js` and `create-admin.js` don't need dev dependencies; they read
-`drizzle/migrations` from the working directory (override with `MIGRATIONS_DIR`).
+`drizzle/migrations` from the working directory (override with `MIGRATIONS_DIR`). Run them with the
+same production environment as the server: they validate it too, so a local `.env` with
+`APP_ORIGIN=http://localhost:…` makes `migrate.js` refuse to run under `NODE_ENV=production`.
 
 ### Docker
 

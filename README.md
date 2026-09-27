@@ -168,6 +168,7 @@ The server validates these at startup and exits with a clear message if they're 
 | `pnpm admin:create` | Create/bootstrap an administrator (development, via tsx) |
 | `node dist/migrate.js` / `node dist/create-admin.js` | The same two tasks from the production build (no dev dependencies) |
 | `pnpm demo:smoke` | Runs the demo flow against a running, freshly seeded dev server (development only) |
+| `pnpm verify:model` | Loads the camera model in Node and runs inference once (needs network access to the model host) |
 | `pnpm format` | Prettier |
 
 ## Roles
@@ -188,10 +189,16 @@ time of the current service + staff delay`. Details and assumptions: [docs/queue
 
 ## Testing
 
-`pnpm test` runs 101 tests: pure logic (state machine, ordering/merge strategies, estimation,
-passwords, tokens, CSV, rate limiting, camera ROI/smoothing) and integration tests against a real
-MySQL database (auth, RBAC, object-level authorization, 25 concurrent joins, duplicate-join races,
-priority, merges, traffic, notifications, imports, SSE delivery over HTTP, security headers).
+`pnpm test` runs 111 tests in 13 files: pure logic (state machine, ordering/merge strategies,
+estimation, passwords, tokens, CSV, rate limiting, camera ROI/smoothing and error messages, browser
+notification gating) and integration tests against a real MySQL database (auth, password reset,
+RBAC, object-level authorization, 25 concurrent joins, duplicate-join races, priority, merges,
+traffic, notifications, imports, SSE delivery over HTTP, security headers, and the full demo flow
+over HTTP and SSE with separate student, staff and admin sessions).
+
+`pnpm verify:model` loads the COCO-SSD model used by the camera station in Node and runs inference
+on synthetic frames (a load-and-run check; it does not measure detection accuracy). Evidence for
+every area is in [docs/final-verification-report.md](docs/final-verification-report.md).
 
 ## Deployment
 

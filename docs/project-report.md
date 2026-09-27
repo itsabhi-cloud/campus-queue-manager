@@ -13,7 +13,7 @@ pausing and merging a failed counter's queue into another without losing anyone'
 Administrators manage services, people and policy with a full audit trail. Optional browser-side
 computer vision (TensorFlow.js, COCO-SSD) estimates crowding near a counter while storing only
 aggregate counts. The system is implemented in TypeScript (React, Express, tRPC, MySQL) and
-verified by 101 automated tests against a real database, an automated accessibility audit, and an
+verified by 111 automated tests against a real database, an automated accessibility audit, and an
 end-to-end demonstration script.
 
 ## Problem statement
@@ -98,7 +98,7 @@ resynchronise everything after reconnecting. See [realtime.md](realtime.md).
 
 ## Testing
 
-- 101 automated tests (unit plus integration against MySQL): authentication, a permissions matrix of
+- 111 automated tests (unit plus integration against MySQL, including the full demo flow over HTTP and SSE): authentication, a permissions matrix of
   26 privileged operations, state transitions, concurrency (25 simultaneous joins, racing duplicate
   joins, simultaneous staff calls), priority, merge and restore, traffic, notifications and recipient
   isolation, import validation and privilege escalation, SSE delivery, security headers.
@@ -109,7 +109,7 @@ resynchronise everything after reconnecting. See [realtime.md](realtime.md).
 
 ## Results
 
-- All 101 automated tests pass; the production build succeeds; type checking is clean.
+- All 111 automated tests pass; the production build succeeds; type checking is clean.
 - Concurrency: 25 simultaneous joins produced tokens C001–C025 with no gaps or duplicates; six
   simultaneous joins by one student produced exactly one token; two simultaneous "call next" clicks
   on one desk called exactly one token.
