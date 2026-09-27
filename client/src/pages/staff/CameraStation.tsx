@@ -2,11 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CameraOff,
-  Crosshair,
-  LockKeyhole,
   ScanFace,
   ShieldCheck,
-  Users,
   Video,
   VideoOff,
 } from "lucide-react";
@@ -20,12 +17,12 @@ import {
 } from "recharts";
 import type { TrafficLevel } from "@shared/domain";
 import {
-  Callout,
   EmptyState,
   ErrorState,
   LoadingBlock,
-  MetricCard,
+  Note,
   PageHeader,
+  PanelHead,
   TrafficBadge,
 } from "@/components/ui/primitives";
 import {
@@ -78,7 +75,7 @@ function drawOverlay(
   ctx.clearRect(0, 0, width, height);
   ctx.setLineDash([10, 8]);
   ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(167, 123, 255, .95)";
+  ctx.strokeStyle = "#f0b82a";
   ctx.strokeRect(
     width * roi.x,
     height * roi.y,
@@ -86,18 +83,18 @@ function drawOverlay(
     height * roi.height
   );
   ctx.setLineDash([]);
-  ctx.font = "600 16px 'DM Sans', sans-serif";
-  ctx.fillStyle = "rgba(167, 123, 255, .95)";
-  ctx.fillText("QUEUE AREA", width * roi.x + 10, height * roi.y + 22);
+  ctx.font = "700 16px 'Atkinson Hyperlegible', sans-serif";
+  ctx.fillStyle = "#f0b82a";
+  ctx.fillText("Queue area", width * roi.x + 10, height * roi.y + 22);
   boxes.forEach(box => {
     ctx.lineWidth = box.inside ? 3 : 2;
-    ctx.strokeStyle = box.inside ? "#a77bff" : "rgba(255,255,255,.55)";
+    ctx.strokeStyle = box.inside ? "#f0b82a" : "rgba(255,255,255,.55)";
     ctx.strokeRect(box.x, box.y, box.width, box.height);
   });
-  ctx.fillStyle = "rgba(15, 11, 26, .78)";
+  ctx.fillStyle = "rgba(27, 35, 64, .85)";
   ctx.fillRect(14, height - 50, 190, 36);
-  ctx.fillStyle = "#f8f5ff";
-  ctx.font = "700 18px 'DM Sans', sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 18px 'Atkinson Hyperlegible', sans-serif";
   ctx.fillText(`${count} in queue area`, 26, height - 25);
 }
 
@@ -277,24 +274,18 @@ function StationRunner({
   return (
     <>
       <div className="camera-layout">
-        <section className="camera-main-card" aria-labelledby="feed-title">
-          <div className="card-heading">
-            <div>
-              <div className="eyebrow">Local camera feed</div>
-              <h2 id="feed-title">{station.station.name}</h2>
-              <small className="muted">
-                {station.serviceName} · {station.groupName}
-              </small>
-            </div>
-            <div className="camera-controls">
-              {running ||
-              phase === "loading-model" ||
-              phase === "requesting" ? (
+        <section className="panel" aria-labelledby="feed-title">
+          <PanelHead
+            id="feed-title"
+            title={station.station.name}
+            description={`Watches ${station.serviceName}, ${station.groupName}`}
+            actions={
+              running || phase === "loading-model" || phase === "requesting" ? (
                 <button
                   className="button button-outline button-small"
                   onClick={stop}
                 >
-                  <VideoOff size={15} aria-hidden /> Stop
+                  <VideoOff size={15} aria-hidden /> Stop camera
                 </button>
               ) : (
                 <button
@@ -304,18 +295,16 @@ function StationRunner({
                 >
                   <Video size={15} aria-hidden /> Start camera
                 </button>
-              )}
-            </div>
-          </div>
+              )
+            }
+          />
           <div className="camera-viewport">
             <video
               ref={videoRef}
               muted
               playsInline
               className={
-                phase === "idle" || phase === "error"
-                  ? "video-hidden"
-                  : "video-visible"
+                phase === "idle" || phase === "error" ? "video-hidden" : ""
               }
             />
             <canvas ref={canvasRef} className="camera-canvas" aria-hidden />
@@ -331,7 +320,7 @@ function StationRunner({
                 </strong>
                 <span>
                   {problem ??
-                    "Start the camera to estimate congestion in the queue area. The digital queue keeps working without it."}
+                    "Start the camera to measure how crowded the queue area is. Queues keep working without it."}
                 </span>
               </div>
             )}
@@ -340,38 +329,29 @@ function StationRunner({
                 <ScanFace size={30} aria-hidden />
                 <strong>
                   {phase === "requesting"
-                    ? "Waiting for camera permission…"
-                    : "Loading the detection model…"}
+                    ? "Waiting for camera permission"
+                    : "Loading the detection model"}
                 </strong>
               </div>
             )}
             <div className="camera-viewport-status">
-              <span className="status-live">
-                <span
-                  className={`live-dot ${running ? "" : "is-off"}`}
-                  aria-hidden
-                />{" "}
-                {running ? "Detecting people locally" : "Not detecting"}
+              <span>
+                {running ? "Counting people in this browser" : "Not counting"}
               </span>
               <span>
-                <Crosshair size={14} aria-hidden /> ROI{" "}
-                {Math.round(roi.width * 100)}×{Math.round(roi.height * 100)}%
+                Area {Math.round(roi.width * 100)}×
+                {Math.round(roi.height * 100)}%
               </span>
             </div>
           </div>
           <div className="camera-caption">
-            <div>
-              <span className="caption-title">
-                <ScanFace size={16} aria-hidden /> Detection
-              </span>
-              <span>
-                Person boxes whose centre falls inside the queue area are
-                counted, then smoothed over the last {SMOOTHING_WINDOW} frames.
-              </span>
-            </div>
+            <p>
+              People whose centre is inside the yellow queue area are counted,
+              then smoothed over the last {SMOOTHING_WINDOW} frames.
+            </p>
             <div className="confidence-control">
               <label htmlFor="confidence">
-                Confidence {Math.round(confidence * 100)}%
+                Detection confidence {Math.round(confidence * 100)}%
               </label>
               <input
                 id="confidence"
@@ -386,44 +366,29 @@ function StationRunner({
           </div>
         </section>
 
-        <aside className="camera-side-column">
-          <div className="camera-metric-hero">
-            <div className="metric-kicker">
-              <span
-                className={`live-dot ${running ? "" : "is-off"}`}
-                aria-hidden
-              />{" "}
-              People in queue area
-            </div>
-            <div className="camera-count" aria-live="polite">
-              {smoothed ?? "—"}
-              <span>{running ? "smoothed" : "not measuring"}</span>
-            </div>
-            <div className="camera-count-helper">
+        <aside className="console-main">
+          <section className="panel" aria-labelledby="count-title">
+            <PanelHead
+              id="count-title"
+              title="People in the queue area"
+              as="h3"
+            />
+            <p className="camera-count num" aria-live="polite">
+              {smoothed ?? "–"}
+            </p>
+            <p className="muted">
               {running
-                ? `${raw} people detected in frame`
+                ? `${raw} people detected in the whole frame`
                 : "No live measurement"}
-            </div>
-            <div className="camera-wait">
-              <div>
-                <span>Server traffic level</span>
-                <strong>
-                  {lastReport ? (
-                    <TrafficBadge level={lastReport.level} label="Camera" />
-                  ) : (
-                    "—"
-                  )}
-                </strong>
-              </div>
-            </div>
-          </div>
-          <div className="camera-status-card">
-            <div className="card-heading compact">
-              <div>
-                <div className="eyebrow">Signal</div>
-                <h3>Station status</h3>
-              </div>
-            </div>
+            </p>
+            {lastReport && (
+              <p className="mt-3">
+                <TrafficBadge level={lastReport.level} label="congestion" />
+              </p>
+            )}
+          </section>
+          <section className="panel" aria-labelledby="signal-title">
+            <PanelHead id="signal-title" title="Station signal" as="h3" />
             <dl className="status-list">
               <div>
                 <dt>Last report</dt>
@@ -432,45 +397,45 @@ function StationRunner({
               <div>
                 <dt>Signal</dt>
                 <dd className={stale ? "danger-text" : "success-text"}>
-                  {stale ? "Stale / offline" : "Fresh"}
+                  {stale ? "Stale or offline" : "Fresh"}
                 </dd>
               </div>
               <div>
-                <dt>Counts toward estimates</dt>
+                <dt>Affects estimates</dt>
                 <dd>
                   {station.cameraAssist
-                    ? "Yes — can raise traffic level"
-                    : "No — informational"}
+                    ? "Can raise traffic level"
+                    : "No, information only"}
                 </dd>
               </div>
               <div>
                 <dt>Thresholds</dt>
                 <dd>
-                  Moderate ≥ {station.moderateAt} · Heavy ≥ {station.heavyAt}
+                  Moderate from {station.moderateAt}, heavy from{" "}
+                  {station.heavyAt}
                 </dd>
               </div>
             </dl>
             {stale && (
               <p className="fine-print">
-                Estimates ignore stale camera data and fall back to the digital
-                queue and staff-set traffic.
+                Estimates ignore stale camera data and use the digital queue and
+                staff-set traffic instead.
               </p>
             )}
-          </div>
+          </section>
         </aside>
       </div>
 
-      <section className="panel chart-panel" aria-labelledby="history-title">
-        <div className="card-heading compact">
-          <div>
-            <div className="eyebrow">Last hour</div>
-            <h3 id="history-title">Aggregate congestion</h3>
-          </div>
-        </div>
+      <section className="panel" aria-labelledby="history-title">
+        <PanelHead
+          id="history-title"
+          title="Crowding over the last hour"
+          as="h3"
+        />
         {history.isLoading ? (
           <LoadingBlock rows={1} />
         ) : (history.data ?? []).length === 0 ? (
-          <p className="muted">No camera measurements in the last hour.</p>
+          <p className="muted">No measurements in the last hour.</p>
         ) : (
           <div
             className="chart-box"
@@ -484,17 +449,21 @@ function StationRunner({
                   people: point.peopleCount,
                 }))}
               >
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={24} />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: 12, fill: "#5a6283" }}
+                  minTickGap={24}
+                />
                 <YAxis
                   allowDecimals={false}
                   width={28}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12, fill: "#5a6283" }}
                 />
                 <Tooltip />
                 <Line
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="people"
-                  stroke="#8757db"
+                  stroke="#1b2340"
                   strokeWidth={2}
                   dot={false}
                   isAnimationActive={false}
@@ -527,39 +496,37 @@ export default function CameraStation() {
   return (
     <>
       <PageHeader
-        eyebrow="Monitoring"
         title="Camera station"
-        subtitle="Estimate physical congestion near a queue — processed entirely in this browser."
+        subtitle="Measures how crowded a queue area is. Video stays in this browser; only a head count is sent."
         actions={
-          <>
-            <span className="privacy-inline">
-              <LockKeyhole size={14} aria-hidden /> No footage leaves this
-              device
-            </span>
-            {list.length > 1 && (
-              <label className="counter-switcher">
-                <span className="sr-only">Camera station</span>
-                <select
-                  value={current?.station.id}
-                  onChange={e => setSelected(Number(e.target.value))}
-                >
-                  {list.map(s => (
-                    <option key={s.station.id} value={s.station.id}>
-                      {s.station.name} · {s.groupName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </>
+          list.length > 1 && (
+            <label className="counter-switcher">
+              <span className="sr-only">Camera station</span>
+              <select
+                value={current?.station.id}
+                onChange={e => setSelected(Number(e.target.value))}
+              >
+                {list.map(s => (
+                  <option key={s.station.id} value={s.station.id}>
+                    {s.station.name}, {s.groupName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )
         }
       />
+      <Note tone="go" icon={ShieldCheck}>
+        <strong>Private by design.</strong> Frames are analysed here and
+        discarded. QueueSense stores the count, the time and a congestion level.
+        It never stores video or faces and never links a person to a token.
+      </Note>
       {!current ? (
         <div className="panel">
           <EmptyState
             icon={CameraOff}
-            title="No camera stations"
-            description="An administrator can add a camera station for a queue under Services & counters."
+            title="No camera stations yet"
+            description="An administrator can add one under Services and counters."
           />
         </div>
       ) : (
@@ -569,34 +536,6 @@ export default function CameraStation() {
           staleSeconds={stations.data!.staleSeconds}
         />
       )}
-      <div className="camera-bottom-grid">
-        <MetricCard
-          label="What is sent"
-          value="1 number"
-          helper="the smoothed people count, every 5 s"
-          icon={Users}
-          accent="violet"
-        />
-        <MetricCard
-          label="What is stored"
-          value="Aggregates"
-          helper="count, time, traffic level"
-          icon={ShieldCheck}
-          accent="teal"
-        />
-        <MetricCard
-          label="Never stored"
-          value="Video · faces"
-          helper="no identities, no recognition"
-          icon={LockKeyhole}
-          accent="orange"
-        />
-      </div>
-      <Callout tone="teal" icon={ShieldCheck}>
-        <strong>Privacy by design:</strong>&nbsp;TensorFlow.js and COCO-SSD run
-        in this browser. People on camera are never matched to tokens or
-        accounts, and camera counts are never added to the digital queue length.
-      </Callout>
     </>
   );
 }

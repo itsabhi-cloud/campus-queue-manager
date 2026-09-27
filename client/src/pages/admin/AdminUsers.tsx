@@ -15,6 +15,7 @@ import type { AccountStatus } from "@shared/domain";
 import { CodeReveal, type IssuedCode } from "@/components/admin/CodeReveal";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import {
+  Chip,
   EmptyState,
   ErrorState,
   Field,
@@ -22,6 +23,7 @@ import {
   PageHeader,
   Pagination,
   Tabs,
+  type ChipTone,
 } from "@/components/ui/primitives";
 import { useAuth } from "@/hooks/useAuth";
 import { errorMessage } from "@/lib/errors";
@@ -31,21 +33,16 @@ import { trpc, type RouterOutputs } from "@/lib/trpc";
 type Row = RouterOutputs["admin"]["users"]["list"]["rows"][number];
 type Audience = "STUDENT" | "STAFF";
 
-const STATUS_CLASS: Record<AccountStatus, string> = {
-  ACTIVE: "status-open",
-  PENDING: "status-waiting",
-  SUSPENDED: "status-paused",
-  DISABLED: "status-cancelled",
+const STATUS_CHIP: Record<AccountStatus, { tone: ChipTone; label: string }> = {
+  ACTIVE: { tone: "go", label: "Active" },
+  PENDING: { tone: "waiting", label: "Not activated" },
+  SUSPENDED: { tone: "warn", label: "Suspended" },
+  DISABLED: { tone: "danger", label: "Disabled" },
 };
 
 function AccountStatusBadge({ status }: { status: AccountStatus }) {
   return (
-    <span className={`status-badge ${STATUS_CLASS[status]}`}>
-      <span className="status-dot" aria-hidden />
-      {status === "PENDING"
-        ? "Not activated"
-        : status.charAt(0) + status.slice(1).toLowerCase()}
-    </span>
+    <Chip tone={STATUS_CHIP[status].tone}>{STATUS_CHIP[status].label}</Chip>
   );
 }
 
@@ -495,7 +492,6 @@ export default function AdminUsers() {
   return (
     <>
       <PageHeader
-        eyebrow="Management"
         title="People"
         subtitle="Students are imported or added by administrators; staff can never register themselves."
         actions={

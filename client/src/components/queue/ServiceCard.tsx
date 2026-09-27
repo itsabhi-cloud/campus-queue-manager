@@ -1,13 +1,20 @@
 import { Link } from "wouter";
-import { ArrowRight, Clock3, Ticket, Users } from "lucide-react";
-import { ServiceIcon, TrafficBadge } from "@/components/ui/primitives";
+import { ChevronRight } from "lucide-react";
+import type { TrafficLevel } from "@shared/domain";
+import { Chip, ServiceIcon, TrafficBadge } from "@/components/ui/primitives";
 import { approxMinutes } from "@/lib/format";
 import type { RouterOutputs } from "@/lib/trpc";
-import type { TrafficLevel } from "@shared/domain";
 
 type CatalogService = RouterOutputs["catalog"]["list"]["services"][number];
-
 const ORDER: TrafficLevel[] = ["NORMAL", "MODERATE", "HEAVY"];
+
+function waitText(estimates: number[]) {
+  if (estimates.length === 0) return "No estimate";
+  const best = Math.min(...estimates);
+  return best < 60
+    ? "No wait right now"
+    : `About ${approxMinutes(best).replace("~", "")} wait`;
+}
 
 export function ServiceCard({
   service,
@@ -24,49 +31,34 @@ export function ServiceCard({
   const estimates = service.groups
     .map(group => group.estimatedWaitSeconds)
     .filter((v): v is number => v !== null);
-  const worstTraffic = service.groups.reduce<TrafficLevel>(
-    (worst, group) =>
-      ORDER.indexOf(group.traffic.effectiveLevel) > ORDER.indexOf(worst)
-        ? group.traffic.effectiveLevel
+  const traffic = service.groups.reduce<TrafficLevel>(
+    (worst, g) =>
+      ORDER.indexOf(g.traffic.effectiveLevel) > ORDER.indexOf(worst)
+        ? g.traffic.effectiveLevel
         : worst,
     "NORMAL"
   );
   return (
     <Link href={`/app/services/${service.slug}`} className="service-card">
-      <div className="service-card-head">
-        <ServiceIcon kind={service.kind} />
+      <ServiceIcon kind={service.kind} large />
+      <div>
+        <h3>{service.name}</h3>
+        <p>{service.groups.map(group => group.name).join(", ")}</p>
+      </div>
+      <ChevronRight size={20} aria-hidden />
+      <div className="service-card-foot">
         {open === 0 ? (
-          <span className="status-badge status-cancelled">Closed</span>
+          <Chip tone="danger">Closed now</Chip>
         ) : (
-          <TrafficBadge level={worstTraffic} />
+          <>
+            <span className="num">{waiting} waiting</span>
+            <span>{waitText(estimates)}</span>
+            <TrafficBadge level={traffic} />
+          </>
         )}
-      </div>
-      <h3>{service.name}</h3>
-      <p>{service.description}</p>
-      <div className="service-card-metrics">
-        <span>
-          <Users size={14} aria-hidden /> {waiting} waiting
-        </span>
-        <span>
-          <Clock3 size={14} aria-hidden />{" "}
-          {estimates.length
-            ? `from ${approxMinutes(Math.min(...estimates))}`
-            : "—"}
-        </span>
-        <span>{open} open</span>
-      </div>
-      <div className="service-card-bottom">
-        <span>
-          {activeTokens.length ? (
-            <>
-              <Ticket size={14} aria-hidden /> You hold{" "}
-              {activeTokens.join(", ")}
-            </>
-          ) : (
-            <>{service.groups.map(group => group.name).join(" · ")}</>
-          )}
-        </span>
-        <ArrowRight size={16} aria-hidden />
+        {activeTokens.length > 0 && (
+          <span className="held">You hold {activeTokens.join(", ")}</span>
+        )}
       </div>
     </Link>
   );

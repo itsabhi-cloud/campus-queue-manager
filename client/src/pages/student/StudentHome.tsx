@@ -1,14 +1,7 @@
 import { useEffect } from "react";
-import {
-  Bell,
-  CheckCircle2,
-  MapPin,
-  Radio,
-  Ticket,
-  TimerReset,
-} from "lucide-react";
-import { ActiveTokenCard } from "@/components/queue/ActiveTokenCard";
+import { TimerReset } from "lucide-react";
 import { ServiceCard } from "@/components/queue/ServiceCard";
+import { TokenTicket } from "@/components/queue/TokenTicket";
 import {
   EmptyState,
   ErrorState,
@@ -20,14 +13,6 @@ import { syncServerTime } from "@/lib/clock";
 import { errorMessage } from "@/lib/errors";
 import { trpc } from "@/lib/trpc";
 import { useRealtime } from "@/realtime/RealtimeProvider";
-
-const JOURNEY = [
-  { icon: Ticket, label: "Get token" },
-  { icon: MapPin, label: "Leave the line" },
-  { icon: Radio, label: "Watch position" },
-  { icon: Bell, label: "Get alerted" },
-  { icon: CheckCircle2, label: "Arrive & finish" },
-];
 
 export default function StudentHome() {
   const { user } = useAuth();
@@ -42,62 +27,57 @@ export default function StudentHome() {
     if (active.data) syncServerTime(active.data.serverTime);
   }, [active.data]);
   const firstName = user?.name.split(" ")[0] ?? "there";
+  const entries = active.data?.entries ?? [];
 
   return (
     <>
       <PageHeader
-        eyebrow="Student"
-        title={`Hi, ${firstName}.`}
-        subtitle="Take a token, get on with your day, and we'll tell you when it's your turn."
+        title={
+          entries.length
+            ? `Hi ${firstName}, here's where you stand`
+            : `Hi ${firstName}`
+        }
+        subtitle={
+          entries.length
+            ? "Your place is held. Leave the line and come back when we call you."
+            : "Take a token for a campus service, then get on with your day. We'll tell you when to come back."
+        }
       />
-      <ol className="journey-strip" aria-label="How QueueSense works">
-        {JOURNEY.map(({ icon: Icon, label }) => (
-          <li key={label}>
-            <Icon size={15} aria-hidden /> {label}
-          </li>
-        ))}
-      </ol>
 
-      <section aria-labelledby="active-heading" className="page-section">
-        <div className="section-mini-heading">
-          <div>
-            <div className="eyebrow">Right now</div>
-            <h2 id="active-heading">My active queues</h2>
-          </div>
+      <section className="section" aria-labelledby="active-heading">
+        <div className="section-head">
+          <h2 id="active-heading">Your tokens</h2>
         </div>
         {active.isLoading ? (
-          <LoadingBlock rows={2} />
+          <LoadingBlock rows={2} label="Loading your tokens" />
         ) : active.error ? (
           <ErrorState
             message={errorMessage(active.error)}
             onRetry={() => active.refetch()}
           />
-        ) : active.data!.entries.length === 0 ? (
+        ) : entries.length === 0 ? (
           <div className="panel">
             <EmptyState
               icon={TimerReset}
-              title="No active tokens"
-              description="Choose a campus service below to reserve your place — you won't need to stand in line."
+              title="You're not in any queue"
+              description="Pick a service below to reserve your place. You won't need to stand in line."
             />
           </div>
         ) : (
           <div className="token-grid">
-            {active.data!.entries.map(entry => (
-              <ActiveTokenCard key={entry.id} entry={entry} />
+            {entries.map(entry => (
+              <TokenTicket key={entry.id} entry={entry} />
             ))}
           </div>
         )}
       </section>
 
-      <section aria-labelledby="services-heading" className="page-section">
-        <div className="section-mini-heading">
-          <div>
-            <div className="eyebrow">Choose a destination</div>
-            <h2 id="services-heading">Campus services</h2>
-          </div>
+      <section className="section" aria-labelledby="services-heading">
+        <div className="section-head">
+          <h2 id="services-heading">Campus services</h2>
         </div>
         {catalog.isLoading ? (
-          <LoadingBlock rows={2} />
+          <LoadingBlock rows={2} label="Loading services" />
         ) : catalog.error ? (
           <ErrorState
             message={errorMessage(catalog.error)}
@@ -107,16 +87,16 @@ export default function StudentHome() {
           <div className="panel">
             <EmptyState
               title="No services are open"
-              description="Check back later — services appear here as soon as the administration opens them."
+              description="Services appear here as soon as the administration opens them."
             />
           </div>
         ) : (
-          <div className="service-grid service-grid-4">
+          <div className="service-list">
             {catalog.data!.services.map(service => (
               <ServiceCard
                 key={service.id}
                 service={service}
-                activeTokens={(active.data?.entries ?? [])
+                activeTokens={entries
                   .filter(e => e.service.id === service.id)
                   .map(e => e.tokenNumber)}
               />

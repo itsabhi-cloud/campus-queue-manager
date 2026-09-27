@@ -1,373 +1,250 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
 import {
-  ArrowRight,
   ArrowUpDown,
-  Bell,
   Building2,
-  Check,
-  ChevronDown,
   Coffee,
-  Eye,
-  MapPin,
+  Flag,
   Printer,
-  Radio,
   ShieldCheck,
-  Ticket,
-  Users,
 } from "lucide-react";
 import { BrandMark } from "@/components/AppShell";
 import { HOME_FOR_ROLE, useAuth } from "@/hooks/useAuth";
 
-const journey = [
-  { icon: Ticket, title: "Get a token", detail: "Pick a service and counter" },
-  {
-    icon: MapPin,
-    title: "Leave the line",
-    detail: "Your place is held for you",
-  },
-  { icon: Radio, title: "Watch your position", detail: "Live, on your phone" },
-  { icon: Bell, title: "Get alerted", detail: "When your turn approaches" },
-  { icon: Check, title: "Arrive & finish", detail: "Right when you're needed" },
+const BOARD = [
+  { counter: "Accounts Desk 1", token: "F102", state: "Serving" },
+  { counter: "Report Counter A", token: "RA014", state: "Called" },
+  { counter: "Dine-in", token: "D031", state: "Serving" },
+  { counter: "Lift 1", token: "LA008", state: "Boarding" },
 ];
 
-const serviceTiles = [
+const STEPS = [
+  {
+    title: "Take a token",
+    text: "Choose a service and a counter, or let us pick the shortest line.",
+  },
+  {
+    title: "Leave the line",
+    text: "Your place is held on the server. Close the app if you like; you won't lose it.",
+  },
+  {
+    title: "Come back when called",
+    text: "Watch your position and estimated wait, and get an alert when you're almost up.",
+  },
+];
+
+const SERVICES = [
   {
     icon: Building2,
     name: "Administration",
-    detail: "Accounts, certificates and admissions desks.",
+    text: "Fees, certificates and admissions desks. When there are two desks, we put you in the shorter line.",
   },
   {
     icon: Printer,
     name: "Printing",
-    detail:
-      "Xerox, colour and bulk report printing — with counter merging when one goes down.",
+    text: "Xerox, colour and report printing. If a printer jams, your job moves to another counter without losing its place.",
   },
   {
     icon: Coffee,
     name: "Cafeteria",
-    detail:
-      "Hold your place for dine-in or takeaway. Ordering stays at the counter.",
+    text: "Hold your spot for dine-in or takeaway. You still order and pay at the counter.",
   },
   {
     icon: ArrowUpDown,
-    name: "Elevator / Lift",
-    detail:
-      "Traffic estimates and a virtual boarding queue. We don't control the lifts.",
+    name: "Lifts",
+    text: "See how busy each lift is and join a boarding queue. QueueSense doesn't control the lifts.",
   },
 ];
-
-function PublicHeader() {
-  const { user } = useAuth();
-  return (
-    <header className="public-header">
-      <BrandMark />
-      <nav aria-label="Page sections">
-        <a href="#how-it-works">How it works</a>
-        <a href="#services">Services</a>
-        <a href="#privacy">Privacy</a>
-      </nav>
-      <div className="public-actions">
-        {user ? (
-          <Link
-            href={HOME_FOR_ROLE[user.role]}
-            className="button button-dark button-small"
-          >
-            Open dashboard <ArrowRight size={15} aria-hidden />
-          </Link>
-        ) : (
-          <Link href="/login" className="button button-dark button-small">
-            Sign in <ArrowRight size={15} aria-hidden />
-          </Link>
-        )}
-      </div>
-    </header>
-  );
-}
 
 export default function Landing() {
   const { user } = useAuth();
   useEffect(() => {
     document.title = "QueueSense · Don't stand in line. Know your turn.";
   }, []);
-  const primaryHref = user ? HOME_FOR_ROLE[user.role] : "/login";
+  const home = user ? HOME_FOR_ROLE[user.role] : "/login";
+
   return (
-    <div className="landing-page">
-      <PublicHeader />
+    <div className="landing">
+      <header className="landing-header">
+        <BrandMark />
+        <nav aria-label="Page sections" className="landing-nav">
+          <a href="#how">How it works</a>
+          <a href="#services">Services</a>
+          <a href="#privacy">Privacy</a>
+        </nav>
+        <Link href={home} className="button button-dark button-small">
+          {user ? "Open QueueSense" : "Sign in"}
+        </Link>
+      </header>
+
       <main>
-        <section className="hero-section">
-          <div className="hero-copy">
-            <div className="announce-pill">
-              <span className="announce-dot" /> Smart campus queues · realtime
-            </div>
+        <section className="landing-hero">
+          <div className="landing-copy">
             <h1>
-              Don&apos;t stand in line.
-              <br />
-              <span>Know your turn.</span>
+              <span>Don't stand in line.</span> <span>Know your turn.</span>
             </h1>
-            <p className="hero-lede">
-              QueueSense holds your place at busy campus services. Take a
-              digital token, get on with your day, and come back when your turn
-              is near — with a live position and an honest wait estimate.
+            <p className="landing-lede">
+              QueueSense holds your place at busy campus counters. Take a token
+              on your phone, get on with your day, and come back when it's
+              nearly your turn.
             </p>
-            <div className="hero-ctas">
-              <Link href={primaryHref} className="button button-primary">
-                {user ? "Open dashboard" : "Sign in to join a queue"}{" "}
-                <ArrowRight size={17} aria-hidden />
+            <div className="page-actions">
+              <Link href={home} className="button button-primary button-large">
+                {user ? "Open QueueSense" : "Sign in to get a token"}
               </Link>
-              <a href="#how-it-works" className="button button-ghost">
-                See how it works <ChevronDown size={16} aria-hidden />
-              </a>
+              {!user && (
+                <Link
+                  href="/activate"
+                  className="button button-outline button-large"
+                >
+                  Activate your account
+                </Link>
+              )}
             </div>
-            <p className="hero-footnote">
-              First time? <Link href="/activate">Activate your account</Link>{" "}
-              with the code from your administration office.
+            <p className="fine-print">
+              Accounts are issued by your administration office. Wait times are
+              estimates, not appointments.
             </p>
           </div>
-          <div className="hero-visual" aria-hidden>
-            <div className="hero-orbit orbit-one" />
-            <div className="hero-orbit orbit-two" />
-            <div className="hero-dashboard-card">
-              <div className="mini-window-top">
-                <span />
-                <span />
-                <span />
-                <small>
-                  Accounts & Fees <b>LIVE</b>
-                </small>
-              </div>
-              <div className="mini-stats">
-                <div>
-                  <small>PEOPLE AHEAD</small>
-                  <strong>
-                    2 <em>people</em>
-                  </strong>
-                </div>
-                <div>
-                  <small>ESTIMATED WAIT</small>
-                  <strong>
-                    06:20 <em>est.</em>
-                  </strong>
-                </div>
-              </div>
-              <div className="mini-token-row">
-                <div className="mini-token-icon">
-                  <Ticket size={15} />
-                </div>
-                <div>
-                  <small>YOUR DIGITAL TOKEN</small>
-                  <strong>
-                    F104 <span>waiting</span>
-                  </strong>
-                </div>
-                <ArrowRight size={17} />
-              </div>
-              <div className="mini-progress">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-            <div className="float-card float-notification">
-              <div className="float-icon float-icon-green">
-                <Check size={16} />
-              </div>
-              <div>
-                <strong>Almost your turn</strong>
-                <small>F104 · 1 person ahead</small>
-              </div>
-            </div>
-            <div className="float-card float-live">
-              <span className="live-dot" />
-              <div>
-                <strong>Live updates</strong>
-                <small>Pushed from the server</small>
-              </div>
-            </div>
-          </div>
-        </section>
 
-        <section className="trust-strip" id="services">
-          <span>Four campus services, one queue platform</span>
-          <div>
-            <span>Administration</span>
-            <span>Printing</span>
-            <span>Cafeteria</span>
-            <span>Elevator</span>
-          </div>
-        </section>
-
-        <section className="workflow-section" id="how-it-works">
-          <div className="center-heading">
-            <div className="eyebrow">From standing to knowing</div>
-            <h2>
-              The queue keeps moving.
-              <br />
-              <span>You keep living.</span>
-            </h2>
-            <p>
-              Your place is held on the server, so it's safe even if you close
-              the app.
-            </p>
-          </div>
-          <ol className="workflow-line">
-            {journey.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <li className="workflow-step" key={step.title}>
-                  <div
-                    className={`workflow-icon ${index === 0 ? "highlight" : ""}`}
-                    aria-hidden
-                  >
-                    <Icon size={20} />
-                  </div>
-                  <div className="workflow-step-copy">
-                    <strong>{step.title}</strong>
-                    <small>{step.detail}</small>
-                  </div>
-                  {index < journey.length - 1 && (
-                    <div className="workflow-arrow" aria-hidden>
-                      <ArrowRight size={15} />
+          <figure
+            className="landing-demo"
+            aria-label="Example of what a student sees"
+          >
+            <div className="ticket landing-ticket" aria-hidden>
+              <div className="ticket-top">
+                <div className="ticket-where">
+                  <div className="ticket-where-text">
+                    <span className="service-icon">
+                      <Building2 size={18} />
+                    </span>
+                    <div>
+                      <small>Administration, Accounts and fees</small>
+                      <strong>Accounts Desk 1</strong>
                     </div>
-                  )}
-                </li>
-              );
-            })}
+                  </div>
+                  <span className="chip chip-waiting">Waiting</span>
+                </div>
+                <p className="ticket-number">F104</p>
+                <p className="ticket-message">
+                  You can leave the line
+                  <span>We'll alert you as your turn gets close.</span>
+                </p>
+              </div>
+              <div className="ticket-perf" />
+              <dl className="ticket-stub">
+                <div className="ticket-figure">
+                  <dt>Estimated wait</dt>
+                  <dd>06:20</dd>
+                </div>
+                <div className="ticket-figure">
+                  <dt>People ahead</dt>
+                  <dd>2</dd>
+                </div>
+                <div className="ticket-line">
+                  <div className="queue-line">
+                    <span className="ql-counter">
+                      <Flag size={14} />
+                    </span>
+                    <span className="ql-person" />
+                    <span className="ql-person" />
+                    <span className="ql-you">You</span>
+                  </div>
+                </div>
+              </dl>
+            </div>
+            <div className="board landing-board" aria-hidden>
+              <div className="board-label">Now serving</div>
+              <table>
+                <tbody>
+                  {BOARD.map(row => (
+                    <tr key={row.counter}>
+                      <td>{row.counter}</td>
+                      <td
+                        className={`display ${row.state === "Called" ? "is-called" : ""}`}
+                      >
+                        {row.token}
+                      </td>
+                      <td>{row.state}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <figcaption className="sr-only">
+              An example ticket, F104 at Accounts Desk 1, with two people ahead
+              and about six minutes to wait, next to a board listing the tokens
+              now being served.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section
+          className="landing-section"
+          id="how"
+          aria-labelledby="how-title"
+        >
+          <h2 id="how-title">How it works</h2>
+          <ol className="landing-steps">
+            {STEPS.map(step => (
+              <li key={step.title}>
+                <strong>{step.title}</strong>
+                <p>{step.text}</p>
+              </li>
+            ))}
           </ol>
         </section>
 
-        <section className="landing-services">
-          {serviceTiles.map(tile => {
-            const Icon = tile.icon;
-            return (
-              <article key={tile.name} className="landing-service-card">
-                <span className="service-icon service-icon-violet" aria-hidden>
-                  <Icon size={18} />
-                </span>
-                <h3>{tile.name}</h3>
-                <p>{tile.detail}</p>
-              </article>
-            );
-          })}
+        <section
+          className="landing-section"
+          id="services"
+          aria-labelledby="services-title"
+        >
+          <h2 id="services-title">Four campus services</h2>
+          <ul className="landing-services">
+            {SERVICES.map(service => {
+              const Icon = service.icon;
+              return (
+                <li key={service.name}>
+                  <span className="service-icon is-large" aria-hidden>
+                    <Icon size={24} />
+                  </span>
+                  <div>
+                    <h3>{service.name}</h3>
+                    <p>{service.text}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
-        <section className="benefit-section">
-          <div className="benefit-visual" aria-hidden>
-            <div className="benefit-orb" />
-            <div className="benefit-ring ring-one" />
-            <div className="benefit-ring ring-two" />
-            <div className="benefit-figure">
-              <Users size={44} />
-              <span className="figure-label label-one">1 · Digital place</span>
-              <span className="figure-label label-two">2 · Live estimate</span>
-              <span className="figure-label label-three">3 · Your turn</span>
-            </div>
-          </div>
-          <div className="benefit-copy">
-            <div className="eyebrow">Why QueueSense</div>
-            <h2>Make waiting a background task.</h2>
-            <p>
-              Staff run the queue from a console; every call, pause, priority
-              and merge updates your screen instantly.
-            </p>
-            <ul>
-              <li>
-                <span aria-hidden>
-                  <Radio size={17} />
-                </span>
-                <div>
-                  <strong>Explainable estimates</strong>
-                  <small>
-                    Based on people ahead, recent service times and current
-                    traffic. An estimate, not an appointment.
-                  </small>
-                </div>
-              </li>
-              <li>
-                <span aria-hidden>
-                  <Bell size={17} />
-                </span>
-                <div>
-                  <strong>Alerts that matter</strong>
-                  <small>
-                    Almost-your-turn, called, moved to another counter, or a big
-                    change in wait — not noise.
-                  </small>
-                </div>
-              </li>
-              <li>
-                <span aria-hidden>
-                  <Eye size={17} />
-                </span>
-                <div>
-                  <strong>Crowd-aware</strong>
-                  <small>
-                    Optional camera stations estimate congestion at lifts and
-                    busy halls.
-                  </small>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="privacy-section" id="privacy">
-          <div className="privacy-inner">
-            <div className="privacy-badge" aria-hidden>
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <div className="eyebrow">Privacy, always</div>
-              <h2>Intelligence without identification.</h2>
-              <p>
-                Camera stations count people in the browser and send only a
-                number. No video, no faces, and never a link between a person on
-                camera and a token.
-              </p>
-            </div>
-            <div className="privacy-checks">
-              <span>
-                <Check size={15} aria-hidden /> No facial recognition
-              </span>
-              <span>
-                <Check size={15} aria-hidden /> No video storage
-              </span>
-              <span>
-                <Check size={15} aria-hidden /> No person-to-token mapping
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section className="landing-cta">
+        <section
+          className="landing-section landing-privacy"
+          id="privacy"
+          aria-labelledby="privacy-title"
+        >
+          <ShieldCheck size={28} aria-hidden />
           <div>
-            <div className="eyebrow">A better line is waiting</div>
-            <h2>
-              Give your next queue
-              <br />
-              <span>a little more space.</span>
+            <h2 id="privacy-title">
+              Cameras count people. They never identify them.
             </h2>
             <p>
-              Students sign in with the account issued by the administration
-              office.
+              Some counters use a camera to measure how crowded the area is. The
+              video is analysed in the browser and thrown away; only a head
+              count is sent. QueueSense doesn't store footage or faces, and it
+              never connects someone on camera to a token.
             </p>
           </div>
-          <Link href={primaryHref} className="button button-light">
-            {user ? "Open dashboard" : "Sign in"}{" "}
-            <ArrowRight size={17} aria-hidden />
-          </Link>
         </section>
       </main>
-      <footer className="public-footer">
-        <div className="footer-bottom">
-          <span>© 2026 QueueSense</span>
-          <span>
-            Wait times are estimates. QueueSense does not identify individuals,
-            take food orders, or control elevators.
-          </span>
-        </div>
+
+      <footer className="landing-footer">
+        <span>QueueSense</span>
+        <span>
+          Wait times are estimates. We manage lines, not food orders, payments
+          or lift hardware.
+        </span>
       </footer>
     </div>
   );

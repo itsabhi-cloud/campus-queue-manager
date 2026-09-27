@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import * as RadixDialog from "@radix-ui/react-dialog";
 import {
   Activity,
   Bell,
@@ -11,14 +12,12 @@ import {
   LogOut,
   Menu,
   Settings2,
-  ShieldCheck,
   Ticket,
   Upload,
   UserRound,
   Users,
   Workflow,
   X,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@shared/domain";
@@ -31,6 +30,7 @@ import { ConnectionBadge } from "./ui/primitives";
 type NavItem = {
   href: string;
   label: string;
+  short?: string;
   icon: LucideIcon;
   exact?: boolean;
 };
@@ -40,14 +40,25 @@ const NAV: Record<Role, Array<{ section: string; items: NavItem[] }>> = {
     {
       section: "Queues",
       items: [
-        { href: "/app", label: "My queues", icon: Ticket, exact: true },
+        {
+          href: "/app",
+          label: "My queues",
+          short: "Queues",
+          icon: Ticket,
+          exact: true,
+        },
         { href: "/app/history", label: "History", icon: History },
       ],
     },
     {
       section: "Account",
       items: [
-        { href: "/notifications", label: "Notifications", icon: Bell },
+        {
+          href: "/notifications",
+          label: "Notifications",
+          short: "Alerts",
+          icon: Bell,
+        },
         { href: "/profile", label: "Profile", icon: UserRound },
       ],
     },
@@ -87,7 +98,7 @@ const NAV: Record<Role, Array<{ section: string; items: NavItem[] }>> = {
         { href: "/admin/import", label: "Import students", icon: Upload },
         {
           href: "/admin/services",
-          label: "Services & counters",
+          label: "Services and counters",
           icon: Workflow,
         },
         { href: "/admin/audit", label: "Audit log", icon: ClipboardList },
@@ -110,13 +121,90 @@ const ROLE_LABEL: Record<Role, string> = {
 export function BrandMark() {
   return (
     <Link href="/" className="brand-mark" aria-label="QueueSense home">
-      <span className="brand-icon" aria-hidden>
-        <Zap size={16} fill="currentColor" />
+      <span className="brand-ticket" aria-hidden>
+        <Ticket size={16} strokeWidth={2.5} />
       </span>
-      <span>
-        Queue<span className="brand-accent">Sense</span>
-      </span>
+      QueueSense
     </Link>
+  );
+}
+
+function NavLinks({
+  role,
+  unread,
+  onNavigate,
+}: {
+  role: Role;
+  unread: number;
+  onNavigate?: () => void;
+}) {
+  const [location] = useLocation();
+  const isActive = (item: NavItem) =>
+    item.exact
+      ? location === item.href
+      : location === item.href || location.startsWith(`${item.href}/`);
+  return (
+    <nav className="side-nav-groups" aria-label="Main">
+      {NAV[role].map(section => (
+        <div key={section.section}>
+          <div className="side-label">{section.section}</div>
+          <div className="side-nav">
+            {section.items.map(item => {
+              const Icon = item.icon;
+              const active = isActive(item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`side-link ${active ? "active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                  onClick={onNavigate}
+                >
+                  <Icon size={18} aria-hidden />
+                  <span>{item.label}</span>
+                  {item.href === "/notifications" && unread > 0 && (
+                    <span className="nav-count" aria-label={`${unread} unread`}>
+                      {unread}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function BottomNav({ unread }: { unread: number }) {
+  const [location] = useLocation();
+  const items = NAV.STUDENT.flatMap(section => section.items);
+  return (
+    <nav className="bottom-nav" aria-label="Main">
+      {items.map(item => {
+        const Icon = item.icon;
+        const active = item.exact
+          ? location === item.href
+          : location.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={active ? "active" : ""}
+            aria-current={active ? "page" : undefined}
+          >
+            <Icon size={20} aria-hidden />
+            {item.short ?? item.label}
+            {item.href === "/notifications" && unread > 0 && (
+              <span className="nav-count" aria-label={`${unread} unread`}>
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -128,158 +216,98 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { user, logout } = useAuth();
-  const [location] = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { pollInterval } = useRealtime();
-  const unread = trpc.notifications.unreadCount.useQuery(undefined, {
+  const unreadQuery = trpc.notifications.unreadCount.useQuery(undefined, {
     enabled: user?.role === "STUDENT",
     refetchInterval: pollInterval,
   });
   if (!user) return null;
-  const sections = NAV[user.role];
-  const isActive = (item: NavItem) =>
-    item.exact
-      ? location === item.href
-      : location === item.href || location.startsWith(`${item.href}/`);
+  const unread = unreadQuery.data?.count ?? 0;
+  const student = user.role === "STUDENT";
 
   return (
-    <div className="app-frame">
+    <div className={`app-frame ${student ? "has-bottom-nav" : ""}`}>
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <aside
-        className={`app-sidebar ${mobileOpen ? "is-open" : ""}`}
-        aria-label="Main navigation"
-      >
-        <div className="sidebar-top">
-          <BrandMark />
-          <button
-            className="icon-btn mobile-close"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="workspace-pill">
-          <span className="live-dot" aria-hidden /> {ROLE_LABEL[user.role]}{" "}
-          workspace
-        </div>
-        <nav className="side-nav-groups">
-          {sections.map(section => (
-            <div key={section.section}>
-              <div className="side-label">{section.section}</div>
-              <div className="side-nav">
-                {section.items.map(item => {
-                  const Icon = item.icon;
-                  const active = isActive(item);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`side-link ${active ? "active" : ""}`}
-                      aria-current={active ? "page" : undefined}
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      <Icon size={18} aria-hidden />
-                      <span>{item.label}</span>
-                      {item.href === "/notifications" &&
-                        (unread.data?.count ?? 0) > 0 && (
-                          <span className="nav-count">
-                            {unread.data!.count}
-                          </span>
-                        )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-        <div className="sidebar-spacer" />
-        <div className="privacy-card">
-          <div className="privacy-icon" aria-hidden>
-            <ShieldCheck size={17} />
-          </div>
-          <div>
-            <strong>Privacy by design</strong>
-            <p>
-              Cameras count people locally. No footage, faces or identities are
-              stored.
-            </p>
-          </div>
-        </div>
+      <aside className="app-sidebar">
+        <BrandMark />
+        <NavLinks role={user.role} unread={unread} />
         <div className="sidebar-footer">
-          <span>QueueSense 2.0</span>
-          <ConnectionBadge />
+          Signed in as {ROLE_LABEL[user.role].toLowerCase()}
         </div>
       </aside>
-      {mobileOpen && (
-        <button
-          className="mobile-overlay"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Close navigation overlay"
-        />
-      )}
+
+      <RadixDialog.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <RadixDialog.Portal>
+          <RadixDialog.Overlay className="drawer-overlay" />
+          <RadixDialog.Content className="drawer" aria-describedby={undefined}>
+            <div className="drawer-head">
+              <BrandMark />
+              <RadixDialog.Close className="icon-btn" aria-label="Close menu">
+                <X size={18} />
+              </RadixDialog.Close>
+            </div>
+            <RadixDialog.Title className="sr-only">Menu</RadixDialog.Title>
+            <NavLinks
+              role={user.role}
+              unread={unread}
+              onNavigate={() => setDrawerOpen(false)}
+            />
+          </RadixDialog.Content>
+        </RadixDialog.Portal>
+      </RadixDialog.Root>
+
       <div className="app-main">
         <header className="topbar">
           <button
             className="icon-btn mobile-menu"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open navigation"
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
           >
-            <Menu size={21} />
+            <Menu size={20} />
           </button>
-          <div className="breadcrumb">
-            <span>{ROLE_LABEL[user.role]}</span>
-            <span aria-hidden>/</span>
-            <strong>{title}</strong>
-          </div>
-          <div className="top-actions">
-            <span className="hide-sm">
-              <ConnectionBadge />
-            </span>
-            {user.role === "STUDENT" && (
-              <Link
-                href="/notifications"
-                className="icon-btn notification-btn"
-                aria-label={`Notifications${unread.data?.count ? `, ${unread.data.count} unread` : ""}`}
-              >
-                <Bell size={18} />
-                {(unread.data?.count ?? 0) > 0 && (
-                  <span className="bell-count">
-                    {unread.data!.count > 9 ? "9+" : unread.data!.count}
-                  </span>
-                )}
-              </Link>
-            )}
+          <div className="topbar-title">{title}</div>
+          <ConnectionBadge />
+          {student && (
             <Link
-              href="/profile"
-              className="user-chip"
-              aria-label="Your profile"
+              href="/notifications"
+              className="icon-btn notification-btn hide-sm"
+              aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
             >
-              <span className="avatar" aria-hidden>
-                {initials(user.name)}
-              </span>
-              <span className="user-chip-text">
-                <strong>{user.name}</strong>
-                <small>{ROLE_LABEL[user.role]}</small>
-              </span>
+              <Bell size={18} />
+              {unread > 0 && (
+                <span className="bell-count" aria-hidden>
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </Link>
-            <button
-              className="icon-btn"
-              onClick={() => void logout()}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut size={16} />
-            </button>
-          </div>
+          )}
+          <Link href="/profile" className="user-chip" aria-label="Your profile">
+            <span className="avatar" aria-hidden>
+              {initials(user.name)}
+            </span>
+            <span className="user-chip-text">
+              <strong>{user.name}</strong>
+              <small>{ROLE_LABEL[user.role]}</small>
+            </span>
+          </Link>
+          <button
+            className="icon-btn"
+            onClick={() => void logout()}
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut size={17} />
+          </button>
         </header>
         <main id="main" className="page-content" tabIndex={-1}>
           {children}
         </main>
       </div>
+      {student && <BottomNav unread={unread} />}
     </div>
   );
 }

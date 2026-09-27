@@ -29,7 +29,6 @@ export default function AdminQueues() {
   return (
     <>
       <PageHeader
-        eyebrow="Operations"
         title="Live queues"
         subtitle="Every counter on campus. Administrators can operate any counter from the console."
       />
@@ -39,7 +38,7 @@ export default function AdminQueues() {
           className="panel"
           aria-labelledby={`svc-${service.id}`}
         >
-          <div className="card-heading compact">
+          <div className="panel-head">
             <div className="cell-with-icon">
               <ServiceIcon kind={service.kind} />
               <h3 id={`svc-${service.id}`}>{service.name}</h3>

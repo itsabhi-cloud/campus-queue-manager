@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useSearch } from "wouter";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { BrandMark } from "@/components/AppShell";
 import { Field } from "@/components/ui/primitives";
 import { HOME_FOR_ROLE, useAuth } from "@/hooks/useAuth";
@@ -46,7 +46,7 @@ export default function Login() {
         <BrandMark />
         <div>
           <h1>Sign in</h1>
-          <p className="page-subtitle">
+          <p className="lede">
             Use the account issued by your campus administration.
           </p>
         </div>
@@ -79,11 +79,10 @@ export default function Login() {
           />
         </Field>
         <button
-          className="button button-primary button-full"
+          className="button button-primary button-large button-full"
           disabled={login.isPending || !email || !password}
         >
           {login.isPending ? "Signing in…" : "Sign in"}{" "}
-          <ArrowRight size={16} aria-hidden />
         </button>
         <div className="auth-links">
           <span>

@@ -20,7 +20,7 @@ function BrowserAlertsButton() {
   );
   if (!supported) return null;
   if (permission === "granted")
-    return <span className="signal-chip">Browser alerts on</span>;
+    return <span className="chip chip-go">Browser alerts on</span>;
   return (
     <button
       className="button button-outline button-small"
@@ -60,7 +60,6 @@ export default function Notifications() {
   return (
     <>
       <PageHeader
-        eyebrow="Updates"
         title="Notifications"
         subtitle="Queue updates that need your attention. New ones also pop up while QueueSense is open."
         actions={
@@ -108,7 +107,10 @@ export default function Notifications() {
         <div className="panel">
           <ul className="notification-list">
             {items.map(item => (
-              <li key={item.id} className={item.readAt ? "" : "is-unread"}>
+              <li
+                key={item.id}
+                className={`${item.readAt ? "" : "is-unread"} ${item.type === "TOKEN_CALLED" || item.type === "ALMOST_NEXT" ? "is-urgent" : ""}`}
+              >
                 <span
                   className={`notification-dot type-${item.type.toLowerCase()}`}
                   aria-hidden
@@ -130,7 +132,7 @@ export default function Notifications() {
                 </div>
                 {!item.readAt && (
                   <button
-                    className="button button-outline button-small"
+                    className="text-button"
                     onClick={() => markRead.mutate({ ids: [item.id] })}
                     aria-label={`Mark "${item.title}" as read`}
                   >

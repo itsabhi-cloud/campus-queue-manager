@@ -9,7 +9,8 @@ import {
 } from "@shared/domain";
 import { Dialog } from "@/components/ui/Dialog";
 import {
-  Callout,
+  Chip,
+  Note,
   CounterBadge,
   EmptyState,
   ErrorState,
@@ -688,9 +689,8 @@ export default function AdminCatalog() {
   return (
     <>
       <PageHeader
-        eyebrow="Management"
         title="Services & counters"
-        subtitle="Everything students see comes from this configuration — nothing is hard-coded in the app."
+        subtitle="Students see exactly what you set up here. Changes apply immediately."
         actions={
           <button
             className="button button-primary button-small"
@@ -700,11 +700,11 @@ export default function AdminCatalog() {
           </button>
         }
       />
-      <Callout tone="violet">
+      <Note>
         Queue behaviour (service time, batch size, merge order, camera assist)
         is configured per queue group, so the same engine runs desks, print
         counters, cafeterias and lifts.
-      </Callout>
+      </Note>
       {data.length === 0 && (
         <div className="panel">
           <EmptyState
@@ -716,27 +716,25 @@ export default function AdminCatalog() {
       {data.map(service => (
         <section
           key={service.id}
-          className="panel catalog-service"
+          className="panel"
           aria-labelledby={`svc-${service.id}`}
         >
-          <div className="card-heading">
+          <div className="panel-head">
             <div className="cell-with-icon">
               <ServiceIcon kind={service.kind} />
               <div>
                 <h2 id={`svc-${service.id}`}>
                   {service.name}{" "}
                   {!service.isActive && (
-                    <span className="status-badge status-cancelled">
-                      Hidden
-                    </span>
+                    <Chip tone="muted">Hidden from students</Chip>
                   )}
                 </h2>
                 <small className="muted">
-                  /{service.slug} · {service.description}
+                  /{service.slug}, {service.description}
                 </small>
               </div>
             </div>
-            <div className="intro-actions">
+            <div className="page-actions">
               <button
                 className="button button-outline button-small"
                 onClick={() =>
@@ -761,22 +759,24 @@ export default function AdminCatalog() {
                   <strong>
                     {group.name}{" "}
                     {!group.isActive && (
-                      <span className="status-badge status-cancelled">
-                        Closed
-                      </span>
+                      <Chip tone="muted">Not taking tokens</Chip>
                     )}
                   </strong>
                   <small className="muted">
                     {durationLabel(group.averageServiceSeconds)} per{" "}
                     {group.serveCapacity > 1
                       ? `trip of ${group.serveCapacity}`
-                      : "person"}{" "}
-                    · max {group.maxWaiting} waiting · merge:{" "}
-                    {group.mergeStrategy.toLowerCase().replace("_", " ")}
-                    {group.cameraAssist ? " · camera-assisted" : ""}
+                      : "person"}
+                    , up to {group.maxWaiting} waiting per counter,{" "}
+                    {group.mergeStrategy === "ALTERNATE"
+                      ? "alternating merge"
+                      : group.mergeStrategy === "JOIN_TIME"
+                        ? "merge by join time"
+                        : "merge appended"}
+                    {group.cameraAssist ? ", camera can raise traffic" : ""}
                   </small>
                 </div>
-                <div className="intro-actions">
+                <div className="page-actions">
                   <button
                     className="button button-outline button-small"
                     onClick={() =>
@@ -801,7 +801,7 @@ export default function AdminCatalog() {
                 </div>
               </div>
               <div className="table-wrap">
-                <table className="data-table compact">
+                <table className="data-table compact stack">
                   <thead>
                     <tr>
                       <th scope="col">Counter</th>
@@ -869,9 +869,8 @@ export default function AdminCatalog() {
       ))}
 
       <section className="panel" aria-labelledby="stations-title">
-        <div className="card-heading compact">
+        <div className="panel-head">
           <div>
-            <div className="eyebrow">Computer vision</div>
             <h3 id="stations-title">Camera stations</h3>
           </div>
           <button
@@ -889,7 +888,7 @@ export default function AdminCatalog() {
           </p>
         ) : (
           <div className="table-wrap">
-            <table className="data-table compact">
+            <table className="data-table compact stack">
               <thead>
                 <tr>
                   <th scope="col">Station</th>

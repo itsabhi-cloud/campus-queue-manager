@@ -54,7 +54,6 @@ export default function AdminSettings() {
   return (
     <>
       <PageHeader
-        eyebrow="Governance"
         title="Settings"
         subtitle="Campus-wide queue rules. Changes are audited."
       />

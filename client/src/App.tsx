@@ -141,7 +141,7 @@ function Routes() {
       />
       <Route
         path="/admin/services"
-        component={page(["ADMIN"], "Services & counters", AdminCatalog)}
+        component={page(["ADMIN"], "Services and counters", AdminCatalog)}
       />
       <Route
         path="/admin/audit"

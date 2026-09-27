@@ -8,7 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/Dialog";
-import { Callout, MetricCard, PageHeader } from "@/components/ui/primitives";
+import { Note, PageHeader, Stat, StatStrip } from "@/components/ui/primitives";
 import { downloadCsv } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
 import { dateTime } from "@/lib/format";
@@ -76,7 +76,6 @@ export default function AdminImport() {
   return (
     <>
       <PageHeader
-        eyebrow="Management"
         title="Import students"
         subtitle="Upload a CSV, review every row, then import in one safe transaction."
       />
@@ -140,12 +139,11 @@ export default function AdminImport() {
 
       {preview && (
         <section className="panel" aria-labelledby="preview-title">
-          <div className="card-heading compact">
+          <div className="panel-head">
             <div>
-              <div className="eyebrow">Preview · nothing saved yet</div>
               <h3 id="preview-title">Review {preview.summary.total} rows</h3>
             </div>
-            <div className="intro-actions">
+            <div className="page-actions">
               {problems.length > 0 && (
                 <button
                   className="button button-outline button-small"
@@ -183,32 +181,22 @@ export default function AdminImport() {
               </button>
             </div>
           </div>
-          <div className="admin-metrics">
-            <MetricCard
-              label="Ready"
-              value={preview.summary.valid}
-              icon={CheckCircle2}
-              accent="teal"
-            />
-            <MetricCard
+          <StatStrip label="Preview summary">
+            <Stat label="Ready to import" value={preview.summary.valid} />
+            <Stat
               label="Invalid"
               value={preview.summary.invalid}
-              icon={AlertTriangle}
-              accent="orange"
+              alert={preview.summary.invalid > 0}
             />
-            <MetricCard
+            <Stat
               label="Duplicate in file"
               value={preview.summary.duplicateInFile}
-              icon={AlertTriangle}
-              accent="orange"
             />
-            <MetricCard
-              label="Already exist"
+            <Stat
+              label="Already have accounts"
               value={preview.summary.alreadyExists}
-              icon={AlertTriangle}
-              accent="blue"
             />
-          </div>
+          </StatStrip>
           <label className="check-row">
             <input
               type="checkbox"
@@ -260,9 +248,8 @@ export default function AdminImport() {
 
       {result && (
         <section className="panel" aria-labelledby="result-title">
-          <div className="card-heading compact">
+          <div className="panel-head">
             <div>
-              <div className="eyebrow">Import complete</div>
               <h3 id="result-title">
                 {result.created} created · {result.skipped} skipped
               </h3>
@@ -292,11 +279,11 @@ export default function AdminImport() {
               <Download size={14} aria-hidden /> Download activation codes
             </button>
           </div>
-          <Callout tone="orange" icon={AlertTriangle}>
+          <Note tone="warn" icon={AlertTriangle}>
             Download the codes now — they are shown only once (the server stores
             only hashes). Distribute them privately, e.g. through your
             institutional email. Codes expire {dateTime(result.expiresAt)}.
-          </Callout>
+          </Note>
         </section>
       )}
 

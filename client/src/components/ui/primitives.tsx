@@ -1,15 +1,27 @@
-import type { ComponentType, ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ComponentType,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import {
   AlertTriangle,
+  ArrowUpDown,
+  Bell,
   Building2,
+  Check,
   CircleHelp,
+  Clock3,
   Coffee,
+  Pause,
+  Play,
+  PowerOff,
   Printer,
   RefreshCw,
-  ArrowUpDown,
-  Sparkles,
-  Wifi,
-  WifiOff,
+  Redo2,
+  X,
   type LucideProps,
 } from "lucide-react";
 import type {
@@ -29,117 +41,209 @@ import { useRealtime } from "@/realtime/RealtimeProvider";
 
 type Icon = ComponentType<LucideProps>;
 
-export function StatusBadge({ status }: { status: QueueStatus }) {
+// ---------------------------------------------------------------- Chips
+
+export type ChipTone =
+  | "brand"
+  | "waiting"
+  | "called"
+  | "serving"
+  | "done"
+  | "go"
+  | "warn"
+  | "danger"
+  | "muted"
+  | "outline";
+
+/** The single badge component. Pass an icon so meaning never depends on colour alone. */
+export function Chip({
+  tone = "muted",
+  icon: IconCmp,
+  children,
+}: {
+  tone?: ChipTone;
+  icon?: Icon;
+  children: ReactNode;
+}) {
   return (
-    <span className={`status-badge status-${status.toLowerCase()}`}>
-      <span className="status-dot" aria-hidden />
-      {STATUS_LABEL[status]}
+    <span className={`chip chip-${tone}`}>
+      {IconCmp && <IconCmp aria-hidden strokeWidth={2.5} />}
+      {children}
     </span>
   );
 }
+
+const STATUS_CHIP: Record<QueueStatus, { tone: ChipTone; icon: Icon }> = {
+  WAITING: { tone: "waiting", icon: Clock3 },
+  CALLED: { tone: "called", icon: Bell },
+  SERVING: { tone: "serving", icon: Play },
+  COMPLETED: { tone: "done", icon: Check },
+  SKIPPED: { tone: "warn", icon: Redo2 },
+  CANCELLED: { tone: "danger", icon: X },
+};
+
+export function StatusBadge({ status }: { status: QueueStatus }) {
+  const { tone, icon } = STATUS_CHIP[status];
+  return (
+    <Chip tone={tone} icon={icon}>
+      {STATUS_LABEL[status]}
+    </Chip>
+  );
+}
+
+const COUNTER_CHIP: Record<CounterStatus, { tone: ChipTone; icon: Icon }> = {
+  OPEN: { tone: "go", icon: Check },
+  PAUSED: { tone: "warn", icon: Pause },
+  OFFLINE: { tone: "danger", icon: PowerOff },
+};
 
 export function CounterBadge({ status }: { status: CounterStatus }) {
-  const cls =
-    status === "OPEN"
-      ? "status-open"
-      : status === "PAUSED"
-        ? "status-paused"
-        : "status-cancelled";
+  const { tone, icon } = COUNTER_CHIP[status];
   return (
-    <span className={`status-badge ${cls}`}>
-      <span className="status-dot" aria-hidden />
+    <Chip tone={tone} icon={icon}>
       {COUNTER_LABEL[status]}
-    </span>
+    </Chip>
   );
 }
 
+/** Three bars plus a word: readable without colour. */
 export function TrafficBadge({
   level,
-  label = "Traffic",
+  label = "traffic",
 }: {
   level: TrafficLevel;
   label?: string;
 }) {
   return (
-    <span className={`traffic-badge traffic-${level.toLowerCase()}`}>
+    <span className={`traffic traffic-${level.toLowerCase()}`}>
       <span className="traffic-bars" aria-hidden>
         <i />
         <i />
         <i />
       </span>
-      {label}: {TRAFFIC_LABEL[level]}
+      {TRAFFIC_LABEL[level]}
+      {label ? ` ${label}` : ""}
     </span>
   );
 }
 
 export function TokenNumber({
   token,
-  large = false,
+  className = "",
 }: {
   token: string;
-  large?: boolean;
+  className?: string;
 }) {
-  const match = token.match(/^([A-Z]+)(\d+)$/);
   return (
-    <span
-      className={`token-number ${large ? "token-large" : ""}`}
-      aria-label={`Token ${token}`}
-    >
-      {match ? (
-        <>
-          <span className="token-prefix">{match[1]}</span>
-          {match[2]}
-        </>
-      ) : (
-        token
-      )}
+    <span className={`display ${className}`} aria-label={`Token ${token}`}>
+      {token}
     </span>
   );
 }
 
-export function MetricCard({
+// ---------------------------------------------------------------- Stats
+
+export function StatStrip({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label?: string;
+}) {
+  return (
+    <dl className="stat-strip" aria-label={label}>
+      {children}
+    </dl>
+  );
+}
+
+export function Stat({
   label,
   value,
   helper,
-  icon: IconCmp,
-  accent = "violet",
+  alert = false,
 }: {
   label: string;
   value: ReactNode;
   helper?: ReactNode;
-  icon: Icon;
-  accent?: "violet" | "teal" | "orange" | "blue";
+  alert?: boolean;
 }) {
   return (
-    <div className={`metric-card accent-${accent}`}>
-      <div className="metric-card-top">
-        <span className="metric-label">{label}</span>
-        <span className="metric-icon" aria-hidden>
-          <IconCmp size={17} />
-        </span>
-      </div>
-      <div className="metric-value">{value}</div>
-      {helper && <div className="metric-helper">{helper}</div>}
+    <div className={`stat ${alert ? "is-alert" : ""}`}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+      {helper && <small>{helper}</small>}
     </div>
   );
 }
 
-export function Callout({
+// ---------------------------------------------------------------- Surfaces
+
+export function Note({
   children,
-  tone = "violet",
-  icon: IconCmp = Sparkles,
+  tone = "neutral",
+  icon: IconCmp = CircleHelp,
 }: {
   children: ReactNode;
-  tone?: "violet" | "teal" | "orange";
+  tone?: "neutral" | "warn" | "go";
   icon?: Icon;
 }) {
   return (
-    <div className={`callout callout-${tone}`} role="note">
+    <div
+      className={`note ${tone === "neutral" ? "" : `note-${tone}`}`}
+      role="note"
+    >
       <IconCmp size={18} aria-hidden />
-      <span>{children}</span>
+      <div>{children}</div>
     </div>
   );
 }
+
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="page-header">
+      <div>
+        <h1>{title}</h1>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      {actions && <div className="page-actions">{actions}</div>}
+    </div>
+  );
+}
+
+export function PanelHead({
+  title,
+  description,
+  actions,
+  as: Heading = "h2",
+  id,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  as?: "h2" | "h3";
+  id?: string;
+}) {
+  return (
+    <div className="panel-head">
+      <div>
+        <Heading id={id}>{title}</Heading>
+        {description && <p>{description}</p>}
+      </div>
+      {actions && <div className="page-actions">{actions}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- States
 
 export function EmptyState({
   icon: IconCmp = CircleHelp,
@@ -154,9 +258,7 @@ export function EmptyState({
 }) {
   return (
     <div className="empty-state">
-      <div className="empty-icon" aria-hidden>
-        <IconCmp size={23} />
-      </div>
+      <IconCmp size={28} aria-hidden />
       <h3>{title}</h3>
       {description && <p>{description}</p>}
       {action}
@@ -175,7 +277,7 @@ export function ErrorState({
     <div className="error-state" role="alert">
       <AlertTriangle size={20} aria-hidden />
       <div>
-        <strong>We couldn't load this.</strong>
+        <strong>This didn't load.</strong>
         <p>{message}</p>
       </div>
       {onRetry && (
@@ -193,7 +295,7 @@ export function ErrorState({
 export function Skeleton({
   height = 16,
   width = "100%",
-  radius = 8,
+  radius = 6,
 }: {
   height?: number;
   width?: number | string;
@@ -220,58 +322,32 @@ export function LoadingBlock({
       {Array.from({ length: rows }, (_, i) => (
         <Skeleton
           key={i}
-          height={i === 0 ? 28 : 64}
-          width={i === 0 ? "40%" : "100%"}
-          radius={12}
+          height={i === 0 ? 28 : 72}
+          width={i === 0 ? "36%" : "100%"}
+          radius={i === 0 ? 6 : 12}
         />
       ))}
     </div>
   );
 }
 
-export function PageHeader({
-  eyebrow,
-  title,
-  subtitle,
-  actions,
-}: {
-  eyebrow?: string;
-  title: string;
-  subtitle?: ReactNode;
-  actions?: ReactNode;
-}) {
-  return (
-    <div className="page-intro-row">
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {subtitle && <p className="page-subtitle">{subtitle}</p>}
-      </div>
-      {actions && <div className="intro-actions">{actions}</div>}
-    </div>
-  );
-}
+// ---------------------------------------------------------------- Live data
 
-/** Live countdown derived from the server's estimate. It is an estimate, never an appointment. */
+/** Countdown derived from the server's estimate. Always an estimate, never an appointment. */
 export function Countdown({
   seconds,
   updatedAt,
   paused = false,
-  size = "md",
 }: {
   seconds: number;
   updatedAt: Date | string;
   paused?: boolean;
-  size?: "md" | "lg";
 }) {
   const remaining = useRemainingSeconds(seconds, updatedAt);
-  if (paused)
-    return (
-      <span className={`countdown countdown-${size} is-paused`}>Paused</span>
-    );
+  if (paused) return <span className="countdown is-paused">Paused</span>;
   return (
-    <span className={`countdown countdown-${size}`} aria-live="off">
-      {remaining <= 30 ? "Any moment" : countdownLabel(remaining)}
+    <span className="countdown num">
+      {remaining <= 30 ? "Soon" : countdownLabel(remaining)}
     </span>
   );
 }
@@ -282,13 +358,13 @@ export function ConnectionBadge() {
     state === "live"
       ? "Live"
       : state === "connecting"
-        ? "Connecting…"
+        ? "Connecting"
         : state === "reconnecting"
-          ? "Reconnecting…"
+          ? "Reconnecting"
           : "Offline";
   return (
     <span
-      className={`connection-badge connection-${state}`}
+      className={`connection connection-${state}`}
       role="status"
       aria-live="polite"
       title={
@@ -297,11 +373,7 @@ export function ConnectionBadge() {
           : "Live updates paused — refreshing every 20 seconds"
       }
     >
-      {state === "offline" ? (
-        <WifiOff size={13} aria-hidden />
-      ) : (
-        <Wifi size={13} aria-hidden />
-      )}
+      <span className="connection-dot" aria-hidden />
       {label}
     </span>
   );
@@ -315,35 +387,26 @@ export const SERVICE_ICON: Record<ServiceKind, Icon> = {
   OTHER: CircleHelp,
 };
 
-export const SERVICE_ACCENT: Record<
-  ServiceKind,
-  "violet" | "blue" | "orange" | "teal"
-> = {
-  ADMINISTRATION: "violet",
-  PRINTING: "blue",
-  CAFETERIA: "orange",
-  ELEVATOR: "teal",
-  OTHER: "violet",
-};
-
 export function ServiceIcon({
   kind,
   size = 18,
+  large = false,
 }: {
   kind: ServiceKind;
   size?: number;
+  large?: boolean;
 }) {
   const IconCmp = SERVICE_ICON[kind];
   return (
-    <span
-      className={`service-icon service-icon-${SERVICE_ACCENT[kind]}`}
-      aria-hidden
-    >
-      <IconCmp size={size} />
+    <span className={`service-icon ${large ? "is-large" : ""}`} aria-hidden>
+      <IconCmp size={large ? 24 : size} />
     </span>
   );
 }
 
+// ---------------------------------------------------------------- Forms
+
+/** Label, hint and error for one control. Wires aria-describedby / aria-invalid onto the control. */
 export function Field({
   label,
   htmlFor,
@@ -357,16 +420,28 @@ export function Field({
   error?: string | null;
   children: ReactNode;
 }) {
+  const hintId = `${htmlFor}-hint`;
+  const errorId = `${htmlFor}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+  const control = Children.only(children);
+  const wired = isValidElement(control)
+    ? cloneElement(control as ReactElement<Record<string, unknown>>, {
+        "aria-describedby": describedBy,
+        "aria-invalid": error ? true : undefined,
+      })
+    : control;
   return (
     <div className={`field ${error ? "has-error" : ""}`}>
       <label htmlFor={htmlFor}>{label}</label>
-      {children}
+      {wired}
       {error ? (
-        <small className="field-error" role="alert">
+        <small className="field-error" id={errorId} role="alert">
           {error}
         </small>
       ) : hint ? (
-        <small className="field-hint">{hint}</small>
+        <small className="field-hint" id={hintId}>
+          {hint}
+        </small>
       ) : null}
     </div>
   );
@@ -386,7 +461,7 @@ export function Pagination({
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return (
     <nav className="pagination" aria-label="Pagination">
-      <span>
+      <span className="num">
         {total === 0
           ? "No results"
           : `${(page - 1) * pageSize + 1}–${Math.min(total, page * pageSize)} of ${total}`}

@@ -1,16 +1,17 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, CheckCircle2, Clock3 } from "lucide-react";
-import { ActiveTokenCard } from "@/components/queue/ActiveTokenCard";
+import { ArrowLeft, SearchX } from "lucide-react";
+import { TokenTicket } from "@/components/queue/TokenTicket";
 import {
+  EmptyState,
   ErrorState,
   LoadingBlock,
-  PageHeader,
+  PanelHead,
   StatusBadge,
   TokenNumber,
 } from "@/components/ui/primitives";
 import { syncServerTime } from "@/lib/clock";
-import { errorMessage } from "@/lib/errors";
+import { appCodeOf, errorMessage } from "@/lib/errors";
 import { dateTime, timeOnly } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import { useRealtime } from "@/realtime/RealtimeProvider";
@@ -26,6 +27,7 @@ const EVENT_LABEL: Record<string, string> = {
   PRIORITY_REMOVED: "Priority removed",
   MERGED: "Moved to another counter",
 };
+const FINAL = new Set(["COMPLETED", "SKIPPED", "CANCELLED"]);
 
 export default function TokenDetail({ id }: { id: string }) {
   const entryId = Number(id);
@@ -43,6 +45,22 @@ export default function TokenDetail({ id }: { id: string }) {
   const live = active.data?.entries.find(e => e.id === entryId);
 
   if (entry.isLoading) return <LoadingBlock rows={3} />;
+  if (entry.error && appCodeOf(entry.error) === "NOT_FOUND") {
+    return (
+      <div className="panel">
+        <EmptyState
+          icon={SearchX}
+          title="We couldn't find that token"
+          description="It may belong to another account, or the link is wrong."
+          action={
+            <Link href="/app" className="button button-primary">
+              Go to your tokens
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
   if (entry.error)
     return (
       <ErrorState
@@ -55,62 +73,60 @@ export default function TokenDetail({ id }: { id: string }) {
   return (
     <>
       <Link href="/app" className="back-link">
-        <ArrowLeft size={15} aria-hidden /> My queues
+        <ArrowLeft size={16} aria-hidden /> Your tokens
       </Link>
-      <PageHeader
-        eyebrow={`${data.serviceName} · ${data.groupName}`}
-        title={`Token ${data.tokenNumber}`}
-        subtitle={`Joined ${dateTime(data.joinedAt)}`}
-      />
       <div className="detail-layout">
         <div>
           {live ? (
-            <ActiveTokenCard entry={live} detailed />
+            <TokenTicket entry={live} detailed />
           ) : (
-            <div className="panel finished-token">
-              <TokenNumber token={data.tokenNumber} large />
-              <StatusBadge status={data.status} />
-              <p className="muted">
-                {data.status === "COMPLETED" &&
-                  "This visit is complete. Thanks for using QueueSense."}
+            <div className="panel">
+              <div className="ticket-where">
+                <TokenNumber
+                  token={data.tokenNumber}
+                  className="ticket-number"
+                />
+                <StatusBadge status={data.status} />
+              </div>
+              <p className="ticket-message">
+                {data.status === "COMPLETED" && "This visit is complete."}
                 {data.status === "CANCELLED" &&
                   `This token was cancelled${data.closedReason ? `: ${data.closedReason}` : "."}`}
                 {data.status === "SKIPPED" &&
-                  `This token was skipped${data.closedReason ? `: ${data.closedReason}` : " because it wasn't answered."}`}
-                {(data.status === "WAITING" ||
-                  data.status === "CALLED" ||
-                  data.status === "SERVING") &&
-                  "Loading live position…"}
+                  `This token was skipped${data.closedReason ? `: ${data.closedReason}` : " because nobody answered the call."}`}
+                {!FINAL.has(data.status) && "Loading your live position…"}
+                <span>
+                  {data.serviceName}, {data.groupName}, {data.counterName}
+                </span>
               </p>
-              <Link href="/app" className="button button-primary">
-                Take another token
+              <Link href="/app" className="button button-primary mt-4">
+                Take a new token
               </Link>
             </div>
           )}
         </div>
-        <aside className="panel">
-          <div className="eyebrow">Timeline</div>
-          <h3>What happened</h3>
+        <aside className="panel" aria-labelledby="timeline-heading">
+          <PanelHead
+            id="timeline-heading"
+            title="History of this token"
+            description={`Joined ${dateTime(data.joinedAt)}`}
+          />
           <ol className="timeline">
             {data.timeline.map(event => (
-              <li key={event.id}>
-                <span className="timeline-dot" aria-hidden>
-                  {event.type === "COMPLETED" ? (
-                    <CheckCircle2 size={13} />
-                  ) : (
-                    <Clock3 size={13} />
-                  )}
-                </span>
-                <div>
-                  <strong>{EVENT_LABEL[event.type] ?? event.type}</strong>
-                  <small>{timeOnly(event.createdAt)}</small>
-                </div>
+              <li
+                key={event.id}
+                className={FINAL.has(event.type) ? "is-final" : ""}
+              >
+                <span className="timeline-dot" aria-hidden />
+                <strong>{EVENT_LABEL[event.type] ?? event.type}</strong>
+                <time dateTime={new Date(event.createdAt).toISOString()}>
+                  {timeOnly(event.createdAt)}
+                </time>
               </li>
             ))}
           </ol>
           <p className="fine-print">
-            At {data.counterName}. Only you and campus staff can see this
-            token's details.
+            Only you and campus staff can see this token.
           </p>
         </aside>
       </div>

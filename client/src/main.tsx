@@ -10,8 +10,12 @@ import superjson from "superjson";
 import App from "./App";
 import { isAuthError } from "./lib/errors";
 import { trpc } from "./lib/trpc";
-import "./index.css";
-import "./styles/app.css";
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/components.css";
+import "./styles/queue.css";
+import "./styles/layout.css";
+import "./styles/landing.css";
 
 let handlingExpiry = false;
 function onApiError(error: unknown) {
