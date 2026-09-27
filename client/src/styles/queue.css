@@ -326,6 +326,7 @@
 .service-card:hover {
   border-color: var(--ink-3);
 }
+.service-card h2,
 .service-card h3 {
   font-size: var(--text-md);
 }

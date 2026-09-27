@@ -898,7 +898,7 @@ export default function AdminCatalog() {
             className="table-wrap"
             tabIndex={0}
             role="region"
-            aria-label="Camera stations"
+            aria-label="Camera stations table"
           >
             <table className="data-table compact stack">
               <thead>

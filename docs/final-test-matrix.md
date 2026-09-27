@@ -1,7 +1,7 @@
 # Final test matrix
 
 Status key: **Pass** (tested and correct) · **Partial** (part tested, rest noted) · **Not tested** ·
-**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (101 tests against
+**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (111 tests against
 MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-28.
 
 | Feature | Expected result | Actual result | Status | Notes |
@@ -39,11 +39,15 @@ MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-2
 | **Countdown** | Derived from `estimated_wait_seconds` + `updated_at` + server clock | Same value across clients; periodic refresh re-anchors stale estimates | Pass | Auto + manual |
 | **Notifications** | Right recipient, message, read state, persistence, realtime | Bystanders receive only their own; no names/emails of others; read/unread per user; delivered over SSE | Pass | Auto + manual |
 | Preferences | Informational alerts can be muted | Muted types not created; transactional always sent | Pass | Auto |
-| Browser notifications | Shown when tab hidden and permission granted | Denied state handled ("Browser alerts blocked") | Partial | Granted path not tested (pane reports `denied`) |
+| Browser notifications | Shown when tab hidden and permission granted | Denied state handled ("Browser alerts blocked"); gating logic unit-tested (granted+hidden shows, foreground/denied/missing API do not, constructor errors caught) | Partial | Real OS notification with permission granted not observed (pane reports `denied`) |
 | Email | Not in scope | Not implemented | External | Post-MVP |
 | **Realtime** | Updates without refresh; resync after reconnect | Student updated live for call, traffic, priority, merge; during outage "Reconnecting" + "Live updates paused"; after restart the missed DB change appeared with no reload | Pass | Manual on production build + auto SSE tests |
 | **Camera** | Aggregate only; stale fallback; honest failure states | Stored columns are counts/levels/time only; stale → ignored; access limited to group staff | Pass | Auto |
 | Camera permission denied | Clear message; queues keep working | "Camera permission was denied…" | Pass | Manual (browser blocks capture) |
+| Camera recovery | A new report after staleness makes the signal count again | Fresh again, level MODERATE, traffic raised | Pass | Auto (operations: "goes stale and recovers") |
+| Camera error messages | Each getUserMedia failure explained | Denied / not found / overconstrained / in use / insecure context / unknown all mapped | Pass | Auto (detection.test.ts) + manual (denied) |
+| Model load and inference in Node | COCO-SSD loads and runs | Loaded (~3 s, CPU backend); 0 people on blank and noise frames | Pass | `pnpm verify:model` (not an accuracy test) |
+| Demo flow over HTTP + SSE | Every step with separate sessions | Passes in the test suite and via `pnpm demo:smoke` | Pass | Auto (demo-flow.test.ts) + script |
 | Live detection with a webcam | People counted in ROI, reported every 5 s | Not run | Not tested | Requires physical camera test |
 | Model availability under CSP | Weights reachable | `model.json` fetched with 200 from the production page | Partial | Full model load follows camera permission |
 | **Admin** | Overview, people, catalogue, assignments, audit, settings | Working; attention list and recent operations from real data | Pass | Auto + manual |
@@ -51,7 +55,7 @@ MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-2
 | **Security** | No leakage; CSRF; headers | Generic 500 text; malformed JSON → 400; cross-origin POST → 403; CSP/HSTS in production; production refuses http/localhost origin | Pass | Auto + manual |
 | **Accessibility** | WCAG 2.1 AA automated checks | axe-core on 21 screens/dialogs: 0 violations after fixes; keyboard sign-in; drawer focus trap | Pass | Screen-reader session not performed |
 | **Responsive** | No horizontal scroll; readable at phone widths | 360/390/768/1024/1280/1440 checked; admin tables stack with labels | Pass | Manual |
-| **Build** | Types, tests, production bundle | `tsc` clean; 101/101; build OK | Pass | |
+| **Build** | Types, tests, production bundle | `tsc` clean; 111/111; build OK | Pass | |
 | **Database** | Clean migration; constraints; no demo data | 19 tables, 31 FK, 11 unique, 6 CHECK, 0 users; idempotent | Pass | Manual on scratch DB |
 | **Deployment** | Production boot on https origin | Boots; health OK; guards work | Partial | Hosting, TLS and managed DB are external; Docker image not built |
 | **Demo flow (12 steps)** | Join → call → traffic → priority → merge → camera → admin | All steps pass; student received QUEUE_JOINED, WAIT_INCREASED, PRIORITY_ADJUSTMENT, QUEUE_MERGED over SSE | Pass | Script against dev server |

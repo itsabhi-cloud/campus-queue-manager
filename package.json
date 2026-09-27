@@ -18,7 +18,8 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "db:migrate:prod": "node dist/migrate.js",
     "admin:create:prod": "node dist/create-admin.js",
-    "demo:smoke": "node scripts/demo-smoke.mjs"
+    "demo:smoke": "node scripts/demo-smoke.mjs",
+    "verify:model": "node scripts/verify-model.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

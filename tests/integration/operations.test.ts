@@ -387,7 +387,7 @@ describeDb("traffic and counter status", () => {
 describeDb("camera signal", () => {
   beforeEach(resetDatabase);
 
-  it("stores aggregates only, raises traffic for camera-assisted queues, and goes stale", async () => {
+  it("stores aggregates only, raises traffic for camera-assisted queues, goes stale and recovers", async () => {
     const staff = await createUser("STAFF");
     const { groupId, counterIds } = await createQueue({
       counters: ["V"],
@@ -450,5 +450,20 @@ describeDb("camera signal", () => {
     group = catalog.services[0].groups[0];
     expect(group.camera?.fresh).toBe(false);
     expect(group.traffic.effectiveLevel).toBe("NORMAL");
+
+    // Recovery: a new report makes the signal fresh again.
+    await callerFor(staff).camera.report({
+      stationId: station.id,
+      peopleCount: 7,
+      rawDetections: 8,
+    });
+    catalog = await callerFor(student).catalog.list();
+    group = catalog.services[0].groups[0];
+    expect(group.camera).toMatchObject({
+      peopleCount: 7,
+      fresh: true,
+      level: "MODERATE",
+    });
+    expect(group.traffic.effectiveLevel).toBe("MODERATE");
   });
 });

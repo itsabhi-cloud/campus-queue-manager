@@ -919,7 +919,7 @@ export default function StaffConsole({ counterId }: { counterId?: string }) {
             <Link key={c.id} href={`/staff/${c.id}`} className="service-card">
               <ServiceIcon kind={c.serviceKind} large />
               <div>
-                <h3>{c.name}</h3>
+                <h2>{c.name}</h2>
                 <p>
                   {c.serviceName}, {c.groupName}
                 </p>

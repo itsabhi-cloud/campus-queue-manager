@@ -342,7 +342,7 @@ export default function AdminOverview() {
           className="table-wrap"
           tabIndex={0}
           role="region"
-          aria-label="Services today"
+          aria-label="Services today table"
         >
           <table className="data-table stack">
             <thead>

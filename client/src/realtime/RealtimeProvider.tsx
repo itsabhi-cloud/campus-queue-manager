@@ -8,6 +8,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import type { RealtimeEvent } from "@shared/domain";
+import { showBrowserNotification } from "@/lib/browserNotify";
 import { syncServerTime } from "@/lib/clock";
 import { trpc } from "@/lib/trpc";
 
@@ -32,20 +33,6 @@ const RealtimeContext = createContext<RealtimeContextValue>({
 export const useRealtime = () => useContext(RealtimeContext);
 
 const BACKOFF = [1_000, 2_000, 5_000, 10_000, 20_000, 30_000];
-
-function showBrowserNotification(title: string, body: string) {
-  try {
-    if (
-      typeof Notification !== "undefined" &&
-      Notification.permission === "granted" &&
-      document.visibilityState === "hidden"
-    ) {
-      new Notification(title, { body, tag: title });
-    }
-  } catch {
-    // Browser notifications are optional.
-  }
-}
 
 /**
  * Subscribes to the server's SSE stream while signed in. Events are invalidation hints: the client
