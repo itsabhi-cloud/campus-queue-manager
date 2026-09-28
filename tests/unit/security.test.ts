@@ -12,7 +12,10 @@ import {
 } from "../../server/auth/tokens";
 import { csvCell, parseCsv, toCsv } from "../../server/lib/csv";
 import { RateLimiter } from "../../server/_core/rateLimit";
-import { productionOriginProblem } from "../../server/_core/env";
+import {
+  productionOriginProblem,
+  productionSecretProblem,
+} from "../../server/_core/env";
 
 describe("password hashing", () => {
   it("verifies the right password and rejects others", async () => {
@@ -101,5 +104,22 @@ describe("production origin", () => {
       productionOriginProblem("https://queue.college.edu", false)
     ).toBeNull();
     expect(productionOriginProblem("http://localhost:3000", true)).toBeNull();
+  });
+});
+
+describe("production secret", () => {
+  it("rejects placeholder secrets from the example and test configuration", () => {
+    expect(
+      productionSecretProblem("replace-with-at-least-32-random-characters")
+    ).toMatch(/placeholder/);
+    expect(
+      productionSecretProblem("test-secret-test-secret-test-secret-0000")
+    ).toMatch(/placeholder/);
+    expect(productionSecretProblem("a".repeat(40))).toMatch(/placeholder/);
+    expect(
+      productionSecretProblem(
+        "9f2c1e7ab04d58e3c6a1f09b7d2e4c8a5b3f6e1d0c9a8b7e"
+      )
+    ).toBeNull();
   });
 });

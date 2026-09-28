@@ -348,7 +348,7 @@ Exactly what is needed to close the remaining items:
    - Create an empty database and a least-privilege user.
    - Set `DATABASE_URL`. URL-encode special characters in the password, for example `@` → `%40`.
 4. **Secrets.**
-   - `SESSION_SECRET`: at least 32 random bytes, for example `openssl rand -hex 32`.
+   - `AUTH_SECRET`: at least 32 random bytes, for example `openssl rand -hex 32`.
 5. **Release steps.**
    - Run `pnpm build`.
    - Run `node dist/migrate.js` with the production environment.
@@ -424,7 +424,7 @@ npm run verify:model                             # network access to the model h
 # clean-database + production checks (scratch DB, dropped afterwards)
 mysql -e "CREATE DATABASE queuesense_verify"
 export DATABASE_URL=mysql://USER:PASS@127.0.0.1:3306/queuesense_verify NODE_ENV=production \
-       APP_ORIGIN=https://queue.example.edu SESSION_SECRET=$(openssl rand -hex 32) PORT=3200
+       APP_ORIGIN=https://queue.example.edu AUTH_SECRET=$(openssl rand -hex 32) PORT=3200
 node dist/migrate.js && node dist/migrate.js
 mysql -e "SELECT constraint_type, COUNT(*) FROM information_schema.table_constraints
           WHERE table_schema='queuesense_verify' GROUP BY constraint_type"
