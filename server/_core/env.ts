@@ -49,6 +49,17 @@ export function productionOriginProblem(
   return null;
 }
 
+/**
+ * Production must not run with a secret copied from .env.example or the test setup: anyone who has
+ * read the repository would know it. Returns a problem description, or null when acceptable.
+ */
+export function productionSecretProblem(secret: string): string | null {
+  const known = /replace-with|change-me|test-secret/i.test(secret);
+  if (known || new Set(secret).size < 8)
+    return "AUTH_SECRET looks like a placeholder. Generate one with: openssl rand -hex 32";
+  return null;
+}
+
 export type Env = z.infer<typeof schema>;
 
 function loadEnv(): Env {
@@ -76,8 +87,14 @@ function loadEnv(): Env {
       env.APP_ORIGIN,
       env.ALLOW_INSECURE_ORIGIN === "true"
     );
-    if (problem)
-      throw new Error(`Invalid environment configuration:\n  - ${problem}`);
+    const secretProblem = productionSecretProblem(env.AUTH_SECRET);
+    if (problem || secretProblem)
+      throw new Error(
+        `Invalid environment configuration:\n${[problem, secretProblem]
+          .filter(Boolean)
+          .map(p => `  - ${p}`)
+          .join("\n")}`
+      );
   }
   try {
     new Intl.DateTimeFormat("en-CA", { timeZone: env.CAMPUS_TIMEZONE });
