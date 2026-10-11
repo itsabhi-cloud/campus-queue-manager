@@ -31,13 +31,8 @@ same production environment as the server: they validate it too, so a local `.en
 
 A multi-stage `Dockerfile` and `.dockerignore` are included. The image runs as the `node` user,
 exposes port 3000 and has a `HEALTHCHECK` on `/api/health`. Run migrations as a release command or
-one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`.
-
-> Not verified: Docker is not installed on the machine this was built on, so the image has not been
-> built locally. Its two stages were replayed without Docker (clean copy honouring
-> `.dockerignore`, `pnpm install --frozen-lockfile && pnpm build`, then `pnpm install --prod` with
-> only `dist/` and `drizzle/migrations`), and the Render start command ran against an empty
-> database. Render's build is the first real image build.
+one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`. The image's default
+command runs migrations and then starts the server, for hosts without a release step.
 
 ## Production environment
 
@@ -65,6 +60,8 @@ Cookies are `HttpOnly; Secure; SameSite=Lax` in production. There is no CORS con
 the browser only ever talks to its own origin.
 
 ## Step by step: public demo on Aiven (MySQL) + Render (web service)
+
+The live demo at <https://queuesense-q46g.onrender.com> runs this setup.
 
 This gets a shareable HTTPS demo with one-click sign-in, on free plans. Free plans change; check
 the current terms on each site. Facts used below (checked 2026-10-11 in Render's docs): a free

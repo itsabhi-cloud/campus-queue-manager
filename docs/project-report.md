@@ -56,7 +56,7 @@ aggregate counts. The interface is phone-first for students and was checked at 3
 system is implemented in TypeScript (React 19, Express, tRPC, MySQL 8) and verified by 115
 automated tests against a real database, an automated accessibility audit, a Lighthouse audit
 (Accessibility, Best Practices and SEO 100 on every page tested) and an end-to-end demonstration
-script.
+script. A live demonstration is hosted at https://queuesense-q46g.onrender.com.
 
 **Keywords:** queue management, realtime web application, Server-Sent Events, tRPC, MySQL,
 computer vision, accessibility.
@@ -367,8 +367,8 @@ The objectives in Section 1.3 are met, with the limitations below.
 Estimates are heuristics, not appointments. The API runs as a single instance (in-memory realtime
 and rate limits). There is no email delivery, self-service password reset or administrator MFA.
 Mobile Lighthouse Performance is below 90 until responses are compressed. Live webcam detection,
-browser notifications with permission granted, a screen-reader session and a hosted deployment were
-not tested in the development environment.
+browser notifications with permission granted and a screen-reader session were not tested in the
+development environment.
 
 ### 7.3 Future enhancements
 

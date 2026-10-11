@@ -2,6 +2,10 @@
 
 **Don't stand in line. Know your turn.**
 
+**Live demo: [queuesense-q46g.onrender.com](https://queuesense-q46g.onrender.com)**. The **Try as Student / Staff / Admin** buttons on
+the landing page sign you in to a demo account with sample data, no sign-up needed. The free
+instance sleeps when idle, so the first load can take up to a minute.
+
 QueueSense is a realtime queue platform for busy campus services. Students take a digital token,
 leave the physical line, watch their live position and an estimated wait, and get notified when
 their turn approaches. Staff run counters from a console; administrators configure services,
