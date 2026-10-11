@@ -1,4 +1,5 @@
 import { auditLogs } from "../../drizzle/schema";
+import { ENV } from "../_core/env";
 import type { Executor } from "../db/client";
 
 export type AuditInput = {
@@ -18,6 +19,7 @@ export async function audit(executor: Executor, input: AuditInput) {
     entityType: input.entityType,
     entityId: input.entityId == null ? null : String(input.entityId),
     metadata: input.metadata ?? {},
-    ipAddress: input.ip ?? null,
+    // On a public demo anyone can sign in as the admin and read this log, so don't keep visitor IPs.
+    ipAddress: ENV.DEMO_MODE === "true" ? null : (input.ip ?? null),
   });
 }
