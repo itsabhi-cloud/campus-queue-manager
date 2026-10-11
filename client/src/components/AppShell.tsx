@@ -285,13 +285,18 @@ export function AppShell({
               )}
             </Link>
           )}
-          <Link href="/profile" className="user-chip" aria-label="Your profile">
-            <span className="avatar" aria-hidden>
-              {initials(user.name)}
-            </span>
+          {/* Named by its text (name, role) so the accessible name matches what's on screen.
+              The initials are drawn by CSS and the text is only visually hidden on phones. */}
+          <Link href="/profile" className="user-chip">
+            <span
+              className="avatar"
+              data-initials={initials(user.name)}
+              aria-hidden
+            />
             <span className="user-chip-text">
               <strong>{user.name}</strong>
               <small>{ROLE_LABEL[user.role]}</small>
+              <span className="sr-only">(your profile)</span>
             </span>
           </Link>
           <button
