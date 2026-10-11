@@ -17,7 +17,7 @@ people and policy.
 | Security | Server-side sessions (HMAC-stored tokens, HttpOnly cookies), RBAC plus object-level checks, CSRF origin check, production config guards ([docs](docs/security.md)) |
 | Realtime | Post-commit, identifier-only SSE events; clients refetch and resync after reconnecting ([docs](docs/realtime.md)) |
 | Tests | Unit and integration tests against a real MySQL database, including concurrency races and the full demo flow over HTTP + SSE ([`tests/`](tests)); CI runs them on every push |
-| Evidence | [Final verification report](docs/final-verification-report.md): what was verified, how, and what still needs a real environment |
+| Evidence | [Final verification report](docs/history/verification-report.md): what was verified, how, and what still needs a real environment |
 
 ## Problem
 
@@ -101,8 +101,8 @@ React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queu
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
 [docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
-[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/final-readiness-audit.md](docs/final-readiness-audit.md) · [docs/final-test-matrix.md](docs/final-test-matrix.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) ·
-[docs/AUDIT.md](docs/AUDIT.md) (starting-point audit)
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) ·
+[docs/history/initial-audit.md](docs/history/initial-audit.md) (starting-point audit)
 
 ## Technology
 
@@ -213,7 +213,7 @@ over HTTP and SSE with separate student, staff and admin sessions).
 
 `pnpm verify:model` loads the COCO-SSD model used by the camera station in Node and runs inference
 on synthetic frames (a load-and-run check; it does not measure detection accuracy). Evidence for
-every area is in [docs/final-verification-report.md](docs/final-verification-report.md).
+every area is in [docs/history/verification-report.md](docs/history/verification-report.md).
 
 ## Deployment
 
@@ -238,4 +238,4 @@ A `Dockerfile` is included. Steps, platform guidance and what was verified local
 - No dark mode; no native mobile app (the web app is responsive and works on phones).
 - Automated accessibility checks pass (axe-core); a full screen-reader session has not been done.
 
-See [docs/final-readiness-audit.md](docs/final-readiness-audit.md) for exactly what was verified.
+See [docs/testing.md](docs/testing.md) for exactly what was verified.

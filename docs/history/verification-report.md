@@ -8,7 +8,7 @@ in-app Chromium browser pane. Docker is **not installed** on this machine.
 Every claim below is labelled:
 
 - **Verified (local)**: a test or check was run in this pass, or in the previous pass with the
-  result recorded in [final-readiness-audit.md](final-readiness-audit.md).
+  result recorded in [final-readiness-audit.md](readiness-audit.md).
 - **Pending (external)**: needs hardware, credentials or infrastructure that this machine doesn't have.
 
 "Code exists" is never counted as verification.
@@ -374,7 +374,7 @@ browser fetching the COCO-SSD weights from Google's model storage. The productio
   there is no administrator MFA.
 - Camera accuracy depends on angle, lighting and occlusion. It is advisory only and can raise but
   never lower traffic.
-- No dark mode (decision recorded in [final-readiness-audit.md](final-readiness-audit.md)).
+- No dark mode (decision recorded in [final-readiness-audit.md](readiness-audit.md)).
 - Browsers tested: Chromium only.
 
 ## 25. Final test counts

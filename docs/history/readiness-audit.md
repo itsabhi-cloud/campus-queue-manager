@@ -2,13 +2,13 @@
 
 Date: 2026-09-28 · Branch `master` · Audited from commit `58e4c47` (clean working tree) · Local
 environment: macOS, Node 24.15, MySQL 8.0.45. Every "Verified" below names the check that was run.
-Full per-feature results are in [final-test-matrix.md](final-test-matrix.md).
+Full per-feature results are in [final-test-matrix.md](../testing.md).
 
 ## Summary
 
 | Area | Status |
 | --- | --- |
-| Build, types, tests | **Verified**: `tsc` clean; 114/114 tests (14 files; updated in [final-verification-report.md](final-verification-report.md)) against a real MySQL test DB; production build succeeds |
+| Build, types, tests | **Verified**: `tsc` clean; 114/114 tests (14 files; updated in [final-verification-report.md](verification-report.md)) against a real MySQL test DB; production build succeeds |
 | Database and migrations | **Verified**: clean database created by the bundled migrator (19 tables, 31 FKs, 11 unique, 6 CHECK); idempotent; 0 users |
 | Authentication and sessions | **Verified**: automated tests plus manual keyboard sign-in; production cookie flags inspected |
 | RBAC and object-level authorization | **Verified**: 26 privileged endpoints × student/staff/anonymous matrix; nothing changes on rejection |
@@ -19,7 +19,7 @@ Full per-feature results are in [final-test-matrix.md](final-test-matrix.md).
 | Camera | **Partially verified**: aggregate reporting, access, staleness, traffic raising (tests); permission-denied UI (browser); model metadata reachable under production CSP. **Requires physical camera test** for live detection |
 | Browser notifications | **Partially verified**: denied state handled (browser reported `denied`); granted path **not verified** |
 | Email / password reset | **Not implemented** (by design): admins issue one-time reset codes. Email delivery is post-MVP |
-| Accessibility | **Verified (automated)**: axe-core WCAG 2.1 A/AA + best practices on 21 screens/dialogs, 0 violations after fixes. A later re-run found 2 more (staff counter picker heading order, duplicate admin landmark names), now fixed; see [final-verification-report.md](final-verification-report.md) §17. Screen-reader session **not performed** |
+| Accessibility | **Verified (automated)**: axe-core WCAG 2.1 A/AA + best practices on 21 screens/dialogs, 0 violations after fixes. A later re-run found 2 more (staff counter picker heading order, duplicate admin landmark names), now fixed; see [final-verification-report.md](verification-report.md) §17. Screen-reader session **not performed** |
 | Responsive | **Verified (manual)**: 360, 390, 768, 1024/1280, 1440 px; no horizontal page scroll at 360 px |
 | Deployment | **Configured**: Dockerfile, bundled migrate/admin scripts, production guards. **Requires external setup**: host, domain/TLS, managed MySQL. Docker image not built (Docker unavailable) |
 | Dark mode | **Post-MVP** (decision below) |
