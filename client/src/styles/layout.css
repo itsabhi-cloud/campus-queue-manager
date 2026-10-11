@@ -172,6 +172,9 @@
   color: inherit;
   text-decoration: none;
 }
+.user-chip .avatar::before {
+  content: attr(data-initials);
+}
 .user-chip:hover {
   background: var(--fill);
 }
@@ -258,7 +261,12 @@
 }
 @media (max-width: 720px) {
   .user-chip-text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   /* Students get a thumb-reachable tab bar instead of a menu. */
   .has-bottom-nav .mobile-menu {
