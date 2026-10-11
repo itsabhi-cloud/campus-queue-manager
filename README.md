@@ -282,3 +282,23 @@ A `Dockerfile` is included. Steps, platform guidance and what was verified local
 - Automated accessibility checks pass (axe-core); a full screen-reader session has not been done.
 
 See [docs/testing.md](docs/testing.md) for exactly what was verified.
+
+## Team & contributions
+
+Two-person project. Each line points to commits on `main` (`git log --format='%h %an %s'`).
+
+| Person | Area | Commits |
+| --- | --- | --- |
+| **Abhi Shiktha** ([@itsabhi-cloud](https://github.com/itsabhi-cloud)) | **Prototype**: the first version of the application | `c59fa47` |
+| | **Frontend polish**: 404 page and page transitions, admin overview fixes, brand assets (favicons, manifest, Open Graph image), demo-mode panel on the landing page, layout-shift fix, accessible-name fix, lazily loaded signed-in shell | `1942353` `36c942c` `42c89c2` `50994ca` `095dd68` `ea8d75b` `33de0fc` |
+| | **Mobile**: 360 px pass with touch targets | `efd3d77` |
+| | **Lighthouse**: audit of five pages on mobile and desktop, recorded in `docs/testing.md` | `0363837` |
+| | **Screenshots**: README screenshot grid and demo GIF | `371f223` `9318135` |
+| | **Report**: project report in the SRMIST chapter format | `222ff51` |
+| | **Demo script**: five-minute demo script | `d857eee` |
+| **Puneet Sreevatsal Jagadam** ([@puneetsreevatsalj](https://github.com/puneetsreevatsalj)) | **Rebuild**: v2 full-stack rebuild, including the role-based frontend on real APIs and the design system | `764590d` `1df7d0f` `228783f` `c56b01c` |
+| | **Backend**: auth and RBAC, schema, queue engine, realtime SSE, admin APIs, NAT-safe sign-in throttling; later database TLS, response compression and demo mode | `764590d` `a431598` `8ccefd6` `875b969` `9bbccff` |
+| | **Quality**: tests, readiness and acceptance passes, ESLint and CI, security review fixes | `d58b2cd` `e1eb1f7` `aefeae3` `b790a69` `5eb6c17` `a267236` `5c52e8c` `110410f` |
+| | **Deployment**: Dockerfile, `render.yaml`, Aiven + Render deployment guide | `aefeae3` `7f8f437` `c67710f` |
+
+Commits authored as "QueueSense" and "Puneet SJ" use Puneet's email address.
