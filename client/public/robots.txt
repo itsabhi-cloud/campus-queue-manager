@@ -1,0 +1,4 @@
+# The public pages are the landing page and sign-in; everything else needs an account.
+User-agent: *
+Allow: /
+Disallow: /api/
