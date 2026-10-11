@@ -1,7 +1,7 @@
 # Final test matrix
 
 Status key: **Pass** (tested and correct) · **Partial** (part tested, rest noted) · **Not tested** ·
-**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (114 tests against
+**External** (needs setup outside this repo). "Auto" means covered by `pnpm test` (115 tests against
 MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-28.
 
 | Feature | Expected result | Actual result | Status | Notes |
