@@ -13,6 +13,7 @@ import {
 import { csvCell, parseCsv, toCsv } from "../../server/lib/csv";
 import { RateLimiter } from "../../server/_core/rateLimit";
 import {
+  databaseSsl,
   productionOriginProblem,
   productionSecretProblem,
 } from "../../server/_core/env";
@@ -121,5 +122,31 @@ describe("production secret", () => {
         "9f2c1e7ab04d58e3c6a1f09b7d2e4c8a5b3f6e1d0c9a8b7e"
       )
     ).toBeNull();
+  });
+});
+
+describe("database TLS", () => {
+  const pem =
+    "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----";
+  it("is off by default", () => {
+    expect(databaseSsl(undefined, undefined)).toEqual({
+      ssl: undefined,
+      problem: null,
+    });
+  });
+  it("verifies against public CAs when no CA is given", () => {
+    expect(databaseSsl("true", undefined).ssl).toEqual({
+      ca: undefined,
+      rejectUnauthorized: true,
+      verifyIdentity: true,
+    });
+  });
+  it("accepts a PEM CA, including one written on one line with \\n", () => {
+    expect(databaseSsl("true", pem).ssl?.ca).toBe(pem);
+    expect(databaseSsl("true", pem.replace(/\n/g, "\\n")).ssl?.ca).toBe(pem);
+  });
+  it("rejects a CA that is not PEM, or a CA without DB_SSL=true", () => {
+    expect(databaseSsl("true", "ca.pem").problem).toMatch(/PEM/);
+    expect(databaseSsl("false", pem).problem).toMatch(/DB_SSL is not true/);
   });
 });

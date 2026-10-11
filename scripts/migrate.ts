@@ -6,9 +6,15 @@ try {
   await runMigrations();
   console.log("Migrations applied.");
 } catch (error) {
+  // Drizzle wraps driver errors as "Failed query: …"; the cause says why (TLS, auth, network).
+  const cause = error instanceof Error ? error.cause : undefined;
   console.error(
     "Migration failed:",
-    error instanceof Error ? error.message : error
+    cause instanceof Error
+      ? cause.message
+      : error instanceof Error
+        ? error.message
+        : error
   );
   process.exitCode = 1;
 } finally {
