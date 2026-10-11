@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { createServer, type Server } from "node:http";
 import superjson from "superjson";
 import { createApp, errorHandler } from "../../server/_core/app";
+import { MAX_STREAMS_PER_SESSION } from "../../server/realtime/sse";
 import {
   createQueue,
   createUser,
@@ -125,6 +126,35 @@ describeDb("HTTP API and realtime", () => {
 
   it("refuses the realtime stream without a session", async () => {
     expect((await fetch(`${base}/api/realtime`)).status).toBe(401);
+  });
+
+  it("caps realtime streams per session and frees slots on disconnect", async () => {
+    await createUser("STUDENT", { email: "tabs@test.edu" });
+    const cookie = await login("tabs@test.edu");
+    const streams = [];
+    for (let i = 0; i < MAX_STREAMS_PER_SESSION; i++) {
+      const stream = await openStream(cookie);
+      expect(stream.response.status).toBe(200);
+      streams.push(stream);
+    }
+    const extra = await fetch(`${base}/api/realtime`, { headers: { cookie } });
+    expect(extra.status).toBe(429);
+    // Another session of the same account (e.g. a shared demo login) is unaffected.
+    const other = await openStream(await login("tabs@test.edu"));
+    expect(other.response.status).toBe(200);
+    other.close();
+
+    // Closing a tab frees its slot (the server sees the disconnect asynchronously).
+    streams.pop()!.close();
+    let status = 0;
+    for (let attempt = 0; attempt < 50 && status !== 200; attempt++) {
+      await new Promise(r => setTimeout(r, 20));
+      const retry = await openStream(cookie);
+      status = retry.response.status;
+      retry.close();
+    }
+    expect(status).toBe(200);
+    streams.forEach(stream => stream.close());
   });
 
   it("blocks cross-origin writes", async () => {
