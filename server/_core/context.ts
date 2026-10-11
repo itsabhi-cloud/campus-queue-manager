@@ -1,28 +1,32 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
+import {
+  readSessionToken,
+  resolveSession,
+  type SessionUser,
+} from "../auth/sessions";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
-  user: User | null;
+  user: SessionUser | null;
+  sessionId: string | null;
+  /** True when a session cookie was sent but no longer resolves (expired, revoked, account inactive). */
+  sessionExpired: boolean;
+  ip: string;
 };
 
-export async function createContext(
-  opts: CreateExpressContextOptions
-): Promise<TrpcContext> {
-  let user: User | null = null;
-
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    // Authentication is optional for public procedures.
-    user = null;
-  }
-
+export async function createContext({
+  req,
+  res,
+}: CreateExpressContextOptions): Promise<TrpcContext> {
+  const token = readSessionToken(req);
+  const session = await resolveSession(token);
   return {
-    req: opts.req,
-    res: opts.res,
-    user,
+    req,
+    res,
+    user: session?.user ?? null,
+    sessionId: session?.sessionId ?? null,
+    sessionExpired: Boolean(token) && !session,
+    ip: (req.ip ?? "unknown").slice(0, 64),
   };
 }
