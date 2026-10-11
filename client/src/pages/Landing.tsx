@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@shared/domain";
-import { BrandMark } from "@/components/AppShell";
+import { BrandMark } from "@/components/BrandMark";
 import { HOME_FOR_ROLE, useAuth } from "@/hooks/useAuth";
 import { useDemoMode } from "@/hooks/useDemoMode";
 

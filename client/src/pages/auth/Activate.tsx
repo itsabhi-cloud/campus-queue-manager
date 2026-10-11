@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { KeyRound } from "lucide-react";
-import { BrandMark } from "@/components/AppShell";
+import { BrandMark } from "@/components/BrandMark";
 import { Field } from "@/components/ui/primitives";
 import { HOME_FOR_ROLE } from "@/hooks/useAuth";
 import { errorMessage } from "@/lib/errors";

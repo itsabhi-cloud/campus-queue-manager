@@ -9,7 +9,6 @@ import { Redirect, Route, Switch, useLocation } from "wouter";
 import { Toaster } from "sonner";
 import type { Role } from "@shared/domain";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
-import { AppShell } from "./components/AppShell";
 import { LoadingBlock } from "./components/ui/primitives";
 import { HOME_FOR_ROLE, useAuth } from "./hooks/useAuth";
 import { RealtimeProvider } from "./realtime/RealtimeProvider";
@@ -18,6 +17,11 @@ import Login from "./pages/auth/Login";
 import Activate from "./pages/auth/Activate";
 import NotFoundPage from "./pages/NotFoundPage";
 
+// The signed-in shell (navigation, drawer dialog) loads with the first protected page, so the
+// public landing and sign-in pages don't download it.
+const AppShell = lazy(() =>
+  import("./components/AppShell").then(m => ({ default: m.AppShell }))
+);
 // Role areas are split into separate chunks; the camera page pulls in TensorFlow.js only when opened.
 const StudentHome = lazy(() => import("./pages/student/StudentHome"));
 const ServiceDetail = lazy(() => import("./pages/student/ServiceDetail"));
@@ -62,11 +66,19 @@ function Protected({
   if (!roles.includes(user.role))
     return <Redirect to={HOME_FOR_ROLE[user.role]} />;
   return (
-    <AppShell title={title}>
-      <AppErrorBoundary>
-        <Suspense fallback={<LoadingBlock rows={3} />}>{children}</Suspense>
-      </AppErrorBoundary>
-    </AppShell>
+    <Suspense
+      fallback={
+        <div className="page-loading">
+          <LoadingBlock rows={3} />
+        </div>
+      }
+    >
+      <AppShell title={title}>
+        <AppErrorBoundary>
+          <Suspense fallback={<LoadingBlock rows={3} />}>{children}</Suspense>
+        </AppErrorBoundary>
+      </AppShell>
+    </Suspense>
   );
 }
 
