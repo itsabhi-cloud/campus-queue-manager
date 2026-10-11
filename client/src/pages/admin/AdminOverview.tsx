@@ -45,6 +45,11 @@ const CHART = {
   grid: "#e9ecf2",
 };
 
+// Recharts colours legend labels like their series; the pale "joined" bar is too light for text.
+const legendLabel = (value: string) => (
+  <span style={{ color: CHART.axis }}>{value}</span>
+);
+
 /** Things an operator should look at now, derived from live catalogue and camera data. */
 function useAttention() {
   const { pollInterval } = useRealtime();
@@ -229,7 +234,7 @@ export default function AdminOverview() {
         />
       </StatStrip>
 
-      <div className="admin-grid">
+      <div className="admin-grid admin-grid-top">
         <section className="panel" aria-labelledby="attention-title">
           <PanelHead
             id="attention-title"
@@ -409,7 +414,7 @@ export default function AdminOverview() {
                   tick={{ fontSize: 12, fill: CHART.axis }}
                 />
                 <Tooltip />
-                <Legend />
+                <Legend formatter={legendLabel} />
                 <Bar
                   dataKey="Joined"
                   name="Issued"
@@ -445,7 +450,7 @@ export default function AdminOverview() {
                   tick={{ fontSize: 12, fill: CHART.axis }}
                 />
                 <Tooltip />
-                <Legend />
+                <Legend formatter={legendLabel} />
                 <Bar
                   dataKey="Completed"
                   stackId="a"
