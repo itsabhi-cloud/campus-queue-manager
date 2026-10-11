@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { initials } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import { useRealtime } from "@/realtime/RealtimeProvider";
+import { BrandMark } from "./BrandMark";
 import { ConnectionBadge } from "./ui/primitives";
 
 type NavItem = {
@@ -117,17 +118,6 @@ const ROLE_LABEL: Record<Role, string> = {
   STAFF: "Staff",
   ADMIN: "Administrator",
 };
-
-export function BrandMark() {
-  return (
-    <Link href="/" className="brand-mark" aria-label="QueueSense home">
-      <span className="brand-ticket" aria-hidden>
-        <Ticket size={16} strokeWidth={2.5} />
-      </span>
-      QueueSense
-    </Link>
-  );
-}
 
 function NavLinks({
   role,

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
-import { BrandMark } from "@/components/AppShell";
+import { BrandMark } from "@/components/BrandMark";
 import { HOME_FOR_ROLE, useAuth } from "@/hooks/useAuth";
 
 export default function NotFoundPage() {
