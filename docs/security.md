@@ -48,7 +48,9 @@
 - Errors: internal errors are logged server-side and returned as a generic message with an
   `appCode`; stack traces and SQL never reach clients.
 - Logs are structured JSON; keys matching password/secret/token/cookie/code/authorization are
-  redacted automatically.
+  redacted automatically. Database errors are logged with the SQL shape and the driver's cause
+  (e.g. `ER_DUP_ENTRY`), but the bound values Drizzle appends (`params: …`) are replaced with
+  `[redacted]`, so hashes, digests and emails don't reach the logs.
 
 ## Browser protections
 
@@ -63,6 +65,9 @@
 ## Abuse and resource limits
 
 - 240 mutations per user per minute; camera reports ≤ 40 per station per minute.
+- At most 8 realtime (SSE) streams per session (several tabs); further attempts get `429`. The cap
+  is per session, not per account, so many people signed into one shared demo account each get
+  their own allowance.
 - Per-counter queue limit and per-student active-token limit (admin setting).
 
 ## Production configuration guards
@@ -71,6 +76,11 @@
   `localhost`). `ALLOW_INSECURE_ORIGIN=true` exists only for running a production build locally.
 - Malformed JSON bodies get `400 Malformed request body.`, oversized bodies `413`; neither is logged
   as a server error, and no response includes stack traces, SQL or file paths.
+
+- `TRUST_PROXY` must be a hop count (usually `1`) or IP/subnet names. `true` is refused: trusting
+  every hop would let clients forge `X-Forwarded-For` and sidestep the per-IP sign-in limits.
+- `AUTH_SECRET` values from `.env.example`, the test setup or the CI workflow are refused in
+  production, as are low-variety strings.
 
 ## Secrets
 
@@ -86,3 +96,26 @@ and validated at startup. Nothing secret is exposed to the client bundle (no `VI
 - No MFA for administrators.
 - Development seed credentials live in `scripts/seed-dev.ts` by design (local testing only; the seed
   refuses to run with `NODE_ENV=production`, and production databases start with zero users).
+
+## Production review (2026-10-11)
+
+Checked against the production build (`NODE_ENV=production`, `node dist/index.js`) and the code:
+
+| Area | Result |
+| --- | --- |
+| Session cookie | `HttpOnly; Secure; SameSite=Lax; Path=/`, 7-day `Max-Age`; only an HMAC of the token is stored |
+| CSRF | Cross-origin POST → 403; `Origin: null` → 403; a mutation over GET → 405 (tRPC); session cookie is `SameSite=Lax` |
+| Sign-in limits | Per-IP failure limits and per-account lockout as described above; depend on a correct `TRUST_PROXY` |
+| `AUTH_SECRET` guard | Refuses example, test and CI secrets and low-variety strings in production (**fixed**: the CI secret was accepted) |
+| Error responses | Malformed JSON → 400, oversized → 413, internal → generic message; no stack, SQL or paths in responses |
+| Logs | **Fixed**: database errors included bound query values (password hashes, digests, emails) in message and stack |
+| Realtime | 401 without a session; **fixed**: one session could open unlimited streams, now 8 |
+| Headers | CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; no `X-Powered-By` |
+| Static files | `../` traversal falls through to `index.html`; hashed assets cached immutably, HTML `no-cache` |
+| Health | Reports status, uptime, DB latency and SSE connection count; no versions, hosts or secrets |
+| `TRUST_PROXY` | **Fixed**: `true` crashed with Express's "invalid IP address"; now a clear startup error |
+
+Not changed, by design or left for later: account lockout can be triggered by anyone who knows an
+email (the trade-off for not counting successful sign-ins per IP); signing in does not revoke a
+session cookie the browser already held; the cookie has no `__Host-` prefix; queries are not
+rate-limited.

@@ -22,7 +22,18 @@ const schema = z.object({
     .min(1)
     .max(24 * 90)
     .default(168),
-  TRUST_PROXY: z.string().optional(),
+  /**
+   * Proxy hops in front of the app (usually 1), or Express's IP/subnet names ("loopback", "10.0.0.0/8").
+   * Never "true": trusting every hop lets clients forge X-Forwarded-For and dodge per-IP limits.
+   */
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .refine(
+      value => !/^(true|false|yes|no)$/i.test(value),
+      'TRUST_PROXY must be a hop count such as 1, or IP/subnet names; not "true".'
+    )
+    .optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** Only for running a production build on your own machine over http://localhost. */
   ALLOW_INSECURE_ORIGIN: z.enum(["true", "false"]).default("false"),
@@ -54,11 +65,11 @@ export function productionOriginProblem(
 }
 
 /**
- * Production must not run with a secret copied from .env.example or the test setup: anyone who has
+ * Production must not run with a secret copied from .env.example, the test setup or the CI workflow: anyone who has
  * read the repository would know it. Returns a problem description, or null when acceptable.
  */
 export function productionSecretProblem(secret: string): string | null {
-  const known = /replace-with|change-me|test-secret/i.test(secret);
+  const known = /replace-with|change-me|test-secret|ci-only/i.test(secret);
   if (known || new Set(secret).size < 8)
     return "AUTH_SECRET looks like a placeholder. Generate one with: openssl rand -hex 32";
   return null;
