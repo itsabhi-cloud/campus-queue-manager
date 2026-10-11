@@ -7,6 +7,38 @@ leave the physical line, watch their live position and an estimated wait, and ge
 their turn approaches. Staff run counters from a console; administrators configure services,
 people and policy.
 
+## What it looks like
+
+The design takes its cues from printed queue tickets and "now serving" boards. A student's token is
+the one bold element on the screen: the number, how many people are ahead and an estimated wait,
+readable at a glance. Signal yellow is reserved for "it's your turn". Students get a phone-first
+layout with a bottom tab bar; staff and admins get a desktop console. Every update arrives live
+over Server-Sent Events, without a refresh.
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="900" alt="Staff press Call next and adjust traffic; the student's ticket updates live and finally turns yellow when they are called">
+</p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/student-home.png" alt="Student home on a phone showing an active cafeteria ticket with nobody ahead"><br><sub>Student home: your active tokens</sub></td>
+    <td width="33%"><img src="docs/images/student-ticket.png" alt="Token detail on a phone showing position, people ahead and estimated wait"><br><sub>Token: position, people ahead, estimate and what changed</sub></td>
+    <td width="33%"><img src="docs/images/student-called.png" alt="Called ticket in signal yellow telling the student which counter to go to"><br><sub>Called: yellow means go</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/staff-console.png" alt="Staff counter console with the waiting list and call, serve and skip controls"><br><sub>Staff counter console</sub></td>
+    <td><img src="docs/images/notifications.png" alt="Student notifications explaining a traffic delay and a priority change"><br><sub>Notifications explain every change</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/admin-overview.png" alt="Admin overview with live stats, needs-attention list, system health and charts"><br><sub>Admin overview</sub></td>
+    <td><img src="docs/images/camera-station.png" alt="Camera station showing an aggregate head count and traffic level"><br><sub>Camera station: counts people, never identifies them</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/images/landing.png" width="900" alt="QueueSense landing page: Don't stand in line. Know your turn."></p>
+
+How these were captured: [docs/images/README.md](docs/images/README.md).
+
 ## For reviewers: where to look
 
 | Area | What to look at |
@@ -66,29 +98,11 @@ one configurable queue engine (no per-service code paths).
 | Notifications | Joined, almost-next, called, serving, completed, skipped, cancelled, merged, priority, position change, wait increased/decreased, counter paused/offline/resumed — with per-student preferences |
 | Computer vision | TensorFlow.js + COCO-SSD in the browser, person-only, ROI filter, median smoothing, aggregate-only reporting, stale detection |
 
-## Demo script (5–7 minutes)
+## Demo script
 
-**Before the demo** (not during it): run `pnpm db:reset:dev`. It rebuilds the demo data and **signs
-everyone out**. Start `pnpm dev`. Accounts in the same browser share a session, so give each role
-its own host (cookies are per host, and development accepts any of these origins):
-`http://localhost:3000` for the student, `http://127.0.0.1:3000` for staff and
-`http://admin.localhost:3000` for the admin. Separate browsers or private windows work too.
-Development logins are listed at the top of `scripts/seed-dev.ts` (development only; the seed
-refuses to run with `NODE_ENV=production` and a production database starts with no users).
-`pnpm demo:smoke` runs the same flow automatically as a pre-flight check (then reseed again).
-
-| Time | Show | Where |
-| --- | --- | --- |
-| 0:00 | The problem: students stand in campus lines without knowing how long they'll wait. | Landing page |
-| 0:30 | **Student** (`student09@queuesense.dev`) opens *Administration → Accounts & Fees* and presses **Get a token**. The "You're in" banner and ticket appear (token, people ahead, estimated wait). | Browser A |
-| 1:00 | The student can leave the line: point at the live countdown and queue line. Also join *Printing → Report / Bulk Printing → Report Counter B* to show several active queues at once. | Browser A |
-| 1:30 | **Staff** (`staff.admin@queuesense.dev`) opens the Accounts desk shown on the student's ticket and presses **Call next**. The ticket updates without refresh ("Moved up to position…"). | Browser B → A |
-| 2:00 | Staff: **Adjust traffic** → Heavy, +5 min, "Lunch rush". The ticket shows "Wait up about … min: Lunch rush" and a notification explains it. | B → A |
-| 2:30 | Switch staff to `staff.print@queuesense.dev`, open *Report Counter B* and give the student's RB token **priority** with a reason ("Exam submission in 15 min"). The ticket shows *Priority* and "Moved up to position 1"; the students behind get "Queue order was updated…". | B → A |
-| 3:15 | Same staff: **Take offline or merge** on Report Counter B into Counter A ("Printer jam"). The student's RB ticket shows "Report Counter B became unavailable… Your place was kept" with the new position. | B → A |
-| 4:00 | **Camera station** (`staff.lift@queuesense.dev`, needs a webcam): aggregate head count and traffic level; privacy note. Without a camera, show the honest "Camera unavailable" state and explain queues work without it. | B |
-| 4:45 | **Admin** (`admin@queuesense.dev`): *Needs attention* (offline counter, heavy traffic) and *Recent operations* (priority, traffic, merge). | B |
-| 5:30 | Architecture and security: server as the source of truth, SSE realtime, row-locked transactions, RBAC, privacy-preserving CV. Finish by calling the student: the ticket turns yellow, "Go to … now". | Slides / docs |
+A timed 5-minute walkthrough (student, staff and admin side by side, with setup steps) is in
+[docs/demo-script.md](docs/demo-script.md). Development logins are listed at the top of
+`scripts/seed-dev.ts`; `pnpm demo:smoke` runs the same flow automatically as a pre-flight check.
 
 ## Architecture at a glance
 
@@ -126,7 +140,7 @@ changed over SSE, then refetch. Camera frames never leave the device; only count
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
 [docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
-[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) ·
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) · [docs/demo-script.md](docs/demo-script.md) ·
 [docs/history/initial-audit.md](docs/history/initial-audit.md) (starting-point audit)
 
 ## Technology
@@ -229,7 +243,7 @@ time of the current service + staff delay`. Details and assumptions: [docs/queue
 
 ## Testing
 
-`pnpm test` runs 114 tests in 14 files: pure logic (state machine, ordering/merge strategies,
+`pnpm test` runs 115 tests in 14 files: pure logic (state machine, ordering/merge strategies,
 estimation, passwords, tokens, CSV, rate limiting, camera ROI/smoothing and error messages, browser
 notification gating) and integration tests against a real MySQL database (auth, password reset,
 RBAC, object-level authorization, 25 concurrent joins, duplicate-join races, priority, merges,

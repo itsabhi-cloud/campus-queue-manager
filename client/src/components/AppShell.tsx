@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { initials } from "@/lib/format";
 import { trpc } from "@/lib/trpc";
 import { useRealtime } from "@/realtime/RealtimeProvider";
+import { BrandMark } from "./BrandMark";
 import { ConnectionBadge } from "./ui/primitives";
 
 type NavItem = {
@@ -117,17 +118,6 @@ const ROLE_LABEL: Record<Role, string> = {
   STAFF: "Staff",
   ADMIN: "Administrator",
 };
-
-export function BrandMark() {
-  return (
-    <Link href="/" className="brand-mark" aria-label="QueueSense home">
-      <span className="brand-ticket" aria-hidden>
-        <Ticket size={16} strokeWidth={2.5} />
-      </span>
-      QueueSense
-    </Link>
-  );
-}
 
 function NavLinks({
   role,
@@ -285,13 +275,18 @@ export function AppShell({
               )}
             </Link>
           )}
-          <Link href="/profile" className="user-chip" aria-label="Your profile">
-            <span className="avatar" aria-hidden>
-              {initials(user.name)}
-            </span>
+          {/* Named by its text (name, role) so the accessible name matches what's on screen.
+              The initials are drawn by CSS and the text is only visually hidden on phones. */}
+          <Link href="/profile" className="user-chip">
+            <span
+              className="avatar"
+              data-initials={initials(user.name)}
+              aria-hidden
+            />
             <span className="user-chip-text">
               <strong>{user.name}</strong>
               <small>{ROLE_LABEL[user.role]}</small>
+              <span className="sr-only">(your profile)</span>
             </span>
           </Link>
           <button

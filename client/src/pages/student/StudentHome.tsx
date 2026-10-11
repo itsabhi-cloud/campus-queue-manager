@@ -38,12 +38,9 @@ export default function StudentHome() {
 
   return (
     <>
+      {/* The title stays the same once tokens load so the content below doesn't jump. */}
       <PageHeader
-        title={
-          entries.length
-            ? `Hi ${firstName}, here's where you stand`
-            : `Hi ${firstName}`
-        }
+        title={`Hi ${firstName}`}
         subtitle={
           entries.length
             ? "Your place is held. Leave the line and come back when we call you."
@@ -51,66 +48,70 @@ export default function StudentHome() {
         }
       />
 
-      <section className="section" aria-labelledby="active-heading">
-        <div className="section-head">
-          <h2 id="active-heading">Your tokens</h2>
-        </div>
-        {active.isLoading ? (
-          <LoadingBlock rows={2} label="Loading your tokens" />
-        ) : active.error ? (
-          <ErrorState
-            message={errorMessage(active.error)}
-            onRetry={() => active.refetch()}
-          />
-        ) : entries.length === 0 ? (
-          <div className="panel">
-            <EmptyState
-              icon={TimerReset}
-              title="You're not in any queue"
-              description="Pick a service below to reserve your place. You won't need to stand in line."
-            />
-          </div>
-        ) : (
-          <div className="token-grid">
-            {entries.map(entry => (
-              <TokenTicket key={entry.id} entry={entry} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="section" aria-labelledby="services-heading">
-        <div className="section-head">
-          <h2 id="services-heading">Campus services</h2>
-        </div>
-        {catalog.isLoading ? (
-          <LoadingBlock rows={2} label="Loading services" />
-        ) : catalog.error ? (
-          <ErrorState
-            message={errorMessage(catalog.error)}
-            onRetry={() => catalog.refetch()}
-          />
-        ) : catalog.data!.services.length === 0 ? (
-          <div className="panel">
-            <EmptyState
-              title="No services are open"
-              description="Services appear here as soon as the administration opens them."
-            />
-          </div>
-        ) : (
-          <div className="service-list">
-            {catalog.data!.services.map(service => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                activeTokens={entries
-                  .filter(e => e.service.id === service.id)
-                  .map(e => e.tokenNumber)}
+      {/* One placeholder until both lists arrive; they then appear together instead of each
+          section growing and pushing the next one down. */}
+      {active.isLoading || catalog.isLoading ? (
+        <LoadingBlock rows={3} label="Loading your queues" />
+      ) : (
+        <>
+          <section className="section" aria-labelledby="active-heading">
+            <div className="section-head">
+              <h2 id="active-heading">Your tokens</h2>
+            </div>
+            {active.error ? (
+              <ErrorState
+                message={errorMessage(active.error)}
+                onRetry={() => active.refetch()}
               />
-            ))}
-          </div>
-        )}
-      </section>
+            ) : entries.length === 0 ? (
+              <div className="panel">
+                <EmptyState
+                  icon={TimerReset}
+                  title="You're not in any queue"
+                  description="Pick a service below to reserve your place. You won't need to stand in line."
+                />
+              </div>
+            ) : (
+              <div className="token-grid">
+                {entries.map(entry => (
+                  <TokenTicket key={entry.id} entry={entry} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="section" aria-labelledby="services-heading">
+            <div className="section-head">
+              <h2 id="services-heading">Campus services</h2>
+            </div>
+            {catalog.error ? (
+              <ErrorState
+                message={errorMessage(catalog.error)}
+                onRetry={() => catalog.refetch()}
+              />
+            ) : catalog.data!.services.length === 0 ? (
+              <div className="panel">
+                <EmptyState
+                  title="No services are open"
+                  description="Services appear here as soon as the administration opens them."
+                />
+              </div>
+            ) : (
+              <div className="service-list">
+                {catalog.data!.services.map(service => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    activeTokens={entries
+                      .filter(e => e.service.id === service.id)
+                      .map(e => e.tokenNumber)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </>
   );
 }

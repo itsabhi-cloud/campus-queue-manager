@@ -172,6 +172,9 @@
   color: inherit;
   text-decoration: none;
 }
+.user-chip .avatar::before {
+  content: attr(data-initials);
+}
 .user-chip:hover {
   background: var(--fill);
 }
@@ -192,6 +195,16 @@
 }
 .page-content:focus {
   outline: none;
+}
+/* Each route mounts a fresh shell, so this plays once per page change. */
+.page-content {
+  animation: page-in 200ms var(--ease);
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .mobile-menu {
   display: none;
@@ -248,7 +261,12 @@
 }
 @media (max-width: 720px) {
   .user-chip-text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
   /* Students get a thumb-reachable tab bar instead of a menu. */
   .has-bottom-nav .mobile-menu {
@@ -392,6 +410,11 @@
   border-radius: var(--r-panel);
   background: var(--surface);
 }
+/* Keep the logo's tap padding but line its edge up with the card text. */
+.auth-card .brand-mark {
+  justify-self: start;
+  margin-left: calc(-1 * var(--s-2));
+}
 .auth-card h1 {
   font-size: var(--text-xl);
 }
@@ -404,6 +427,15 @@
   border-radius: var(--r-control);
   background: var(--fill);
   font-size: var(--text-sm);
+}
+.not-found-code {
+  font-size: 88px;
+  line-height: 0.9;
+  color: var(--violet);
+}
+.not-found-actions {
+  display: grid;
+  gap: var(--s-3);
 }
 .auth-links {
   font-size: var(--text-sm);
@@ -672,6 +704,9 @@
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
   gap: var(--s-4);
   margin-bottom: var(--s-4);
+}
+.admin-grid-top {
+  align-items: start;
 }
 .admin-grid .panel + .panel {
   margin-top: 0;

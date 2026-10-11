@@ -4,15 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f6f8" />
-    <meta name="description" content="QueueSense — Don't stand in line. Know your turn. Smart, realtime queues for campus services." />
+    <meta
+      name="description"
+      content="QueueSense — Don't stand in line. Know your turn. Smart, realtime queues for campus services."
+    />
     <title>QueueSense · Know your turn</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Link previews. TODO: once the demo URL is final, make og:image absolute and add og:url
+         (e.g. https://<demo-domain>/og-image.png); some sites ignore relative image paths. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="QueueSense" />
+    <meta
+      property="og:title"
+      content="QueueSense · Don't stand in line. Know your turn."
+    />
+    <meta
+      property="og:description"
+      content="Realtime campus queues: live position, honest wait estimates and alerts when your turn is close."
+    />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="QueueSense: Don't stand in line. Know your turn. An example ticket F104 with a 6 minute wait and 2 people ahead."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
-    <noscript>QueueSense needs JavaScript to show live queue positions.</noscript>
+    <noscript
+      >QueueSense needs JavaScript to show live queue positions.</noscript
+    >
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
