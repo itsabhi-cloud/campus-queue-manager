@@ -124,6 +124,9 @@ location / {
 
 - `GET /api/health` → 200 `{status:"ok", checks:{database, databaseLatencyMs, realtime}}`, 503 when
   the database is unreachable. No secrets are included.
+- Responses over 1 KB (HTML, JS, CSS, JSON) are compressed with brotli or gzip, whichever the
+  browser offers. The SSE stream at `/api/realtime` is never compressed or buffered, so a proxy
+  in front doesn't need to (and shouldn't) compress it either.
 - JSON logs on stdout/stderr with secrets redacted.
 - Graceful shutdown on SIGTERM/SIGINT (closes SSE streams, which clients reconnect and resync).
 

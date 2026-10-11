@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { createServer, type Server } from "node:http";
 import superjson from "superjson";
 import { createApp, errorHandler } from "../../server/_core/app";
+import { broker } from "../../server/realtime/broker";
 import { MAX_STREAMS_PER_SESSION } from "../../server/realtime/sse";
 import {
   createQueue,
@@ -46,10 +47,13 @@ async function login(email: string) {
 }
 
 /** Opens the SSE stream and collects parsed events. */
-async function openStream(cookie: string) {
+async function openStream(
+  cookie: string,
+  headers: Record<string, string> = {}
+) {
   const controller = new AbortController();
   const response = await fetch(`${base}/api/realtime`, {
-    headers: { cookie },
+    headers: { cookie, ...headers },
     signal: controller.signal,
   });
   const events: Array<{ type: string; [key: string]: unknown }> = [];
@@ -126,6 +130,40 @@ describeDb("HTTP API and realtime", () => {
 
   it("refuses the realtime stream without a session", async () => {
     expect((await fetch(`${base}/api/realtime`)).status).toBe(401);
+  });
+
+  it("compresses JSON responses with brotli or gzip", async () => {
+    // A batch of 80 queries gives a JSON body well over the 1 KB compression threshold.
+    const paths = Array.from({ length: 80 }, () => "auth.me").join(",");
+    const input = encodeURIComponent(JSON.stringify({}));
+    for (const encoding of ["br", "gzip"]) {
+      const response = await fetch(
+        `${base}/api/trpc/${paths}?batch=1&input=${input}`,
+        { headers: { "accept-encoding": encoding } }
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-encoding")).toBe(encoding);
+      expect(await response.json()).toHaveLength(80);
+    }
+  });
+
+  it("streams realtime events uncompressed and unbuffered, even when compression is offered", async () => {
+    const student = await createUser("STUDENT", { email: "live@test.edu" });
+    const cookie = await login("live@test.edu");
+    const stream = await openStream(cookie, { "accept-encoding": "br, gzip" });
+    expect(stream.response.status).toBe(200);
+    expect(stream.response.headers.get("content-type")).toMatch(
+      /^text\/event-stream/
+    );
+    expect(stream.response.headers.get("content-encoding")).toBeNull();
+    // Each event must arrive while the stream stays open; a compressor would hold them back.
+    await stream.waitFor(e => e.type === "hello", 1000);
+    broker.publish(
+      { kind: "user", userId: student.id },
+      { type: "session.revoked" }
+    );
+    await stream.waitFor(e => e.type === "session.revoked", 1000);
+    stream.close();
   });
 
   it("caps realtime streams per session and frees slots on disconnect", async () => {

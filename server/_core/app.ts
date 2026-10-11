@@ -4,6 +4,7 @@ import express, {
   type Response,
 } from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import compression from "compression";
 import { createContext } from "./context";
 import { ENV, isProduction } from "./env";
 import { logger } from "./logger";
@@ -80,6 +81,18 @@ export function createApp() {
         : Number(ENV.TRUST_PROXY)
     );
   app.use(securityHeaders);
+  // gzip/brotli for HTML, JS, CSS and JSON. Never the SSE stream: a compressor buffers output until
+  // it has enough to emit, which would hold realtime events back.
+  app.use(
+    compression({
+      filter: (req, res) =>
+        req.path !== "/api/realtime" &&
+        !String(res.getHeader("Content-Type") ?? "").startsWith(
+          "text/event-stream"
+        ) &&
+        compression.filter(req, res),
+    })
+  );
 
   app.get("/api/health", async (_req, res) => {
     const database = await pingDatabase();
