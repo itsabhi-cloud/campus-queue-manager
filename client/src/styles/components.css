@@ -726,6 +726,8 @@ details > summary {
 /* ----------------------------------------------------------- Tabs, paging */
 .tabs {
   display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
   gap: var(--s-1);
   padding: 3px;
   margin-bottom: var(--s-4);
@@ -733,6 +735,8 @@ details > summary {
   background: var(--fill);
 }
 .tabs button {
+  flex-shrink: 0;
+  white-space: nowrap;
   min-height: 36px;
   padding: 0 var(--s-4);
   border: 0;
@@ -948,6 +952,21 @@ details > summary {
 .list-row:hover {
   background: #fafbfc;
 }
+.list-rows li:last-child .list-row {
+  border-bottom: 0;
+}
+@media (max-width: 480px) {
+  /* Status chip moves under the details so they keep the full width. */
+  .list-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    row-gap: var(--s-2);
+  }
+  .list-row > :nth-child(3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
 .list-row-main strong {
   display: block;
 }
@@ -1055,6 +1074,20 @@ details > summary {
   color: var(--ink-3);
   font-size: var(--text-xs);
 }
+@media (max-width: 480px) {
+  /* Give the message the full width; "Mark read" moves under it. */
+  .notification-list li {
+    grid-template-columns: 32px minmax(0, 1fr);
+    row-gap: 0;
+  }
+  .notification-list .text-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .tabs button {
+    padding: 0 var(--s-3);
+  }
+}
 .avatar {
   display: grid;
   place-items: center;
@@ -1108,5 +1141,16 @@ details > summary {
   }
   .stat:nth-child(n + 3) {
     border-top: 1px solid var(--line-soft);
+  }
+}
+
+/* Last in the file so it wins over the base sizes above: standalone text
+ * controls get a full-height tap area on touch screens. */
+@media (pointer: coarse) {
+  .text-button,
+  .back-link,
+  .tabs button,
+  .user-chip {
+    min-height: var(--touch);
   }
 }
