@@ -58,7 +58,9 @@ const stream = await fetch(`${base}/api/realtime`, {
         if (d) events.push(JSON.parse(d.slice(6)));
       }
     }
-  } catch {}
+  } catch {
+    // The stream is aborted on purpose (ctrl.abort()) once the walkthrough finishes.
+  }
 })();
 
 const catalog = await get(student, "catalog.list", undefined);
