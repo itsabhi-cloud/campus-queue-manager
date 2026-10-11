@@ -10,7 +10,6 @@ services:
     dockerfilePath: ./Dockerfile
     # Free instances have no pre-deploy command, so migrations run before the server on every start.
     # They are idempotent; `exec` lets the server receive SIGTERM directly for a graceful shutdown.
-    dockerCommand: sh -c "node dist/migrate.js && exec node dist/index.js"
     healthCheckPath: /api/health
     # Names only. Render asks for each value when the Blueprint is first created.
     envVars:
