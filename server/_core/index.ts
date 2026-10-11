@@ -4,6 +4,7 @@ import { errorHandler, createApp } from "./app";
 import { logger } from "./logger";
 import { purgeExpiredSessions } from "../auth/sessions";
 import { closeDatabase, pingDatabase } from "../db/client";
+import { demoModeEnabled, startDemoScheduler } from "../demo";
 import { recalculateGroups } from "../queue/engine";
 import { closeAllStreams } from "../realtime/sse";
 import { serveStatic, setupVite } from "./vite";
@@ -35,11 +36,15 @@ async function start() {
     );
   }, 3_600_000);
 
+  // Public demo: seed an empty database, then reset the demo data once a day.
+  const stopDemo = demoModeEnabled() ? startDemoScheduler() : () => undefined;
+
   server.listen(ENV.PORT, () => {
     logger.info("QueueSense listening", {
       port: ENV.PORT,
       origin: ENV.APP_ORIGIN ?? `http://localhost:${ENV.PORT}`,
       env: ENV.NODE_ENV,
+      demoMode: demoModeEnabled(),
     });
   });
   server.on("error", error => {
@@ -54,6 +59,7 @@ async function start() {
     logger.info("Shutting down", { signal });
     clearInterval(recalcTimer);
     clearInterval(purgeTimer);
+    stopDemo();
     closeAllStreams();
     const force = setTimeout(() => process.exit(1), 10_000);
     force.unref();

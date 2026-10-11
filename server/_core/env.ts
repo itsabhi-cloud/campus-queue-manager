@@ -22,10 +22,32 @@ const schema = z.object({
     .min(1)
     .max(24 * 90)
     .default(168),
-  TRUST_PROXY: z.string().optional(),
+  /**
+   * Proxy hops in front of the app (usually 1), or Express's IP/subnet names ("loopback", "10.0.0.0/8").
+   * Never "true": trusting every hop lets clients forge X-Forwarded-For and dodge per-IP limits.
+   */
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .refine(
+      value => !/^(true|false|yes|no)$/i.test(value),
+      'TRUST_PROXY must be a hop count such as 1, or IP/subnet names; not "true".'
+    )
+    .optional(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** Only for running a production build on your own machine over http://localhost. */
   ALLOW_INSECURE_ORIGIN: z.enum(["true", "false"]).default("false"),
+  /**
+   * Public demo instance: one-click sign-in to seeded demo accounts, a nightly reset, and demo
+   * accounts blocked from password changes and destructive admin actions. Use a dedicated database.
+   */
+  DEMO_MODE: z.enum(["true", "false"]).default("false"),
+  /** Campus-time hour (0–23) after which the demo data is reset once per day. */
+  DEMO_RESET_HOUR: z.coerce.number().int().min(0).max(23).default(4),
+  /** Connect to MySQL over TLS (managed providers such as Aiven require it). */
+  DB_SSL: z.enum(["true", "false"]).default("false"),
+  /** PEM certificate of the provider's CA. Literal "\n" sequences are accepted for one-line values. */
+  DB_SSL_CA: z.string().optional(),
 });
 
 /**
@@ -50,14 +72,64 @@ export function productionOriginProblem(
 }
 
 /**
- * Production must not run with a secret copied from .env.example or the test setup: anyone who has
+ * Production must not run with a secret copied from .env.example, the test setup or the CI workflow: anyone who has
  * read the repository would know it. Returns a problem description, or null when acceptable.
  */
 export function productionSecretProblem(secret: string): string | null {
-  const known = /replace-with|change-me|test-secret/i.test(secret);
+  const known = /replace-with|change-me|test-secret|ci-only/i.test(secret);
   if (known || new Set(secret).size < 8)
     return "AUTH_SECRET looks like a placeholder. Generate one with: openssl rand -hex 32";
   return null;
+}
+
+export type DatabaseSsl = {
+  ca?: string;
+  rejectUnauthorized: true;
+  verifyIdentity: true;
+};
+
+/**
+ * TLS options for the MySQL pool. The server certificate is always verified, including that it was
+ * issued for the DATABASE_URL host (mysql2 skips that check unless `verifyIdentity` is set). The
+ * chain is checked against `DB_SSL_CA` when given (providers with their own CA, such as Aiven),
+ * otherwise against Node's built-in public CAs.
+ * Returns a problem description instead of options when the combination is invalid.
+ */
+export function databaseSsl(
+  enabled: string | undefined,
+  caInput: string | undefined
+): { ssl: DatabaseSsl | undefined; problem: string | null } {
+  const ca = caInput?.trim().replace(/\\n/g, "\n") || undefined;
+  if (enabled !== "true")
+    return {
+      ssl: undefined,
+      problem: ca ? "DB_SSL_CA is set but DB_SSL is not true." : null,
+    };
+  if (ca && !ca.includes("-----BEGIN CERTIFICATE-----"))
+    return {
+      ssl: undefined,
+      problem:
+        "DB_SSL_CA must be the PEM text of the CA certificate (-----BEGIN CERTIFICATE----- …).",
+    };
+  return {
+    ssl: { ca, rejectUnauthorized: true, verifyIdentity: true },
+    problem: null,
+  };
+}
+
+/**
+ * mysql2 ignores libmysql-style TLS parameters in the URL (with only a warning) and then connects
+ * *without* TLS. Providers such as Aiven append `?ssl-mode=REQUIRED`, so refuse it and point to
+ * DB_SSL instead.
+ */
+export function databaseUrlProblem(url: string): string | null {
+  const params = new URL(url).searchParams;
+  const tlsParam = ["ssl-mode", "sslmode", "ssl"].find(name =>
+    params.has(name)
+  );
+  return tlsParam
+    ? `Remove "?${tlsParam}=…" from DATABASE_URL (the MySQL driver ignores it); set DB_SSL=true and DB_SSL_CA instead.`
+    : null;
 }
 
 export type Env = z.infer<typeof schema>;
@@ -82,6 +154,11 @@ function loadEnv(): Env {
     );
   }
   const env = parsed.data;
+  const sslProblem =
+    databaseUrlProblem(env.DATABASE_URL) ??
+    databaseSsl(env.DB_SSL, env.DB_SSL_CA).problem;
+  if (sslProblem)
+    throw new Error(`Invalid environment configuration:\n  - ${sslProblem}`);
   if (env.NODE_ENV === "production") {
     const problem = productionOriginProblem(
       env.APP_ORIGIN,

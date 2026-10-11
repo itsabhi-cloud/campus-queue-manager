@@ -34,7 +34,10 @@ exposes port 3000 and has a `HEALTHCHECK` on `/api/health`. Run migrations as a 
 one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`.
 
 > Not verified: Docker is not installed on the machine this was built on, so the image has not been
-> built. The same commands were verified without Docker (see "Verified locally").
+> built locally. Its two stages were replayed without Docker (clean copy honouring
+> `.dockerignore`, `pnpm install --frozen-lockfile && pnpm build`, then `pnpm install --prod` with
+> only `dist/` and `drizzle/migrations`), and the Render start command ran against an empty
+> database. Render's build is the first real image build.
 
 ## Production environment
 
@@ -43,54 +46,141 @@ one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`.
 | `NODE_ENV` | `production` (set by `pnpm start`; set it yourself if you run `node dist/index.js`) |
 | `APP_ORIGIN` | Your public `https://` origin. The server refuses to start with `http://` or `localhost`. |
 | `AUTH_SECRET` | ≥ 32 random characters, stored in the host's secret manager |
-| `DATABASE_URL` | Managed MySQL URL; prefer TLS if the provider offers it |
+| `DATABASE_URL` | Managed MySQL URL |
+| `DB_SSL` | `true` to connect over TLS (required by managed providers such as Aiven) |
+| `DB_SSL_CA` | PEM text of the provider's CA certificate, if it isn't signed by a public CA (Aiven: yes) |
 | `TRUST_PROXY` | `1` behind the platform's load balancer |
 | `CAMPUS_TIMEZONE` | Campus time zone |
+
+### Database TLS
+
+With `DB_SSL=true` the pool connects over TLS and refuses the connection unless the server
+certificate chains to a trusted CA **and** was issued for the host in `DATABASE_URL`. The trusted
+CA is `DB_SSL_CA` when set, otherwise Node's built-in public CAs. `DB_SSL_CA` takes the certificate
+text itself (not a file path); paste it multi-line, or on one line with `\n` between lines. Setting
+`DB_SSL_CA` without `DB_SSL=true`, or a value that isn't PEM, stops the server at startup. The
+migration and admin scripts use the same pool, so they need the same two variables.
 
 Cookies are `HttpOnly; Secure; SameSite=Lax` in production. There is no CORS configuration because
 the browser only ever talks to its own origin.
 
-## Step by step: a public demo instance
+## Step by step: public demo on Aiven (MySQL) + Render (web service)
 
-This is one way to get a shareable HTTPS link for a portfolio or assignment. **It has not yet been
-carried out**; record the result here once it has. Any host works as long as it runs one
-long-lived Node process (SSE needs long-lived connections, so serverless functions won't work) and
-provides MySQL 8 (the version this project is tested on). Check each platform's current pricing and
-free-tier limits yourself, because they change.
+This gets a shareable HTTPS demo with one-click sign-in, on free plans. Free plans change; check
+the current terms on each site. Facts used below (checked 2026-10-11 in Render's docs): a free
+Render web service has 512 MB RAM, **no pre-deploy command and no shell**, spins down after 15
+minutes without inbound traffic (about a minute to wake), and gets 750 free instance hours a month
+per workspace, enough for one service running all month.
 
-1. **Push the repository to GitHub.** CI (`.github/workflows/ci.yml`) type-checks, runs the full
-   test suite against MySQL 8 and builds on every push.
-2. **Create the database.** Use a managed MySQL 8 database on the same platform, or a separate
-   MySQL 8 provider. Copy its connection URL, and URL-encode special characters in the password
-   (`@` → `%40`).
-3. **Create the web service from the repository.** Build with the included `Dockerfile`, or use
-   `pnpm install --frozen-lockfile && pnpm build` with start command `node dist/index.js`.
-4. **Set the environment variables** (see the table above):
-   - `DATABASE_URL`: the URL from step 2
-   - `AUTH_SECRET`: generate with `openssl rand -hex 32`; placeholders are refused
-   - `APP_ORIGIN`: the exact `https://…` address the platform gives the service; localhost and
-     http are refused
-   - `TRUST_PROXY=1`
-   - `NODE_ENV=production` (the Dockerfile already sets it)
-5. **Run migrations once per release:** `node dist/migrate.js`, as the platform's pre-deploy or
-   release command, or as a one-off shell command.
-6. **Create the first administrator:** `node dist/create-admin.js --email you@example.com --name
-   "Your Name"`. Open `/activate` on the live site and set a password with the printed code.
-7. **Choose how demo data gets in.** Either:
-   - **Clean instance:** configure services, counters and staff from the admin pages, then add or
-     import students.
-   - **Demo data, deliberately:** from your own machine, run the development seed against the
-     hosted database with your own passwords:
-     ```bash
-     DATABASE_URL='<hosted url>' SEED_ADMIN_PASSWORD='<private>' \
-       SEED_STAFF_PASSWORD='<shareable>' SEED_STUDENT_PASSWORD='<shareable>' pnpm db:seed:dev
-     ```
-     The seed refuses `NODE_ENV=production` and refuses a database that already has users, unless
-     you add `--reset`, which **deletes everything**. Never share the admin password. Share only the
-     student and staff demo logins, and reseed periodically if visitors leave a mess.
-8. **Check the live site:** `/api/health` returns `"status":"ok"`, sign-in works, and the
-   **Live** badge stays green while staff call a token. If live updates stall, the platform's proxy
-   is buffering `/api/realtime`; see the notes below.
+You need accounts on GitHub (with access to the repository), [Aiven](https://aiven.io),
+[Render](https://render.com) and, for step 6, [UptimeRobot](https://uptimerobot.com).
+
+### 1. Create the database (Aiven)
+
+1. In the Aiven console: **Create service → MySQL → Free plan**. Pick the region closest to the
+   Render region you will use (`render.yaml` says `singapore`; change it there before step 3 if
+   you pick something else, because Render can't move a service later).
+2. Wait until the service is **Running**. On its **Overview** page, copy the **Service URI** and
+   download the **CA certificate** (`ca.pem`).
+3. Turn the Service URI into `DATABASE_URL`: keep everything up to the database name and **delete
+   `?ssl-mode=REQUIRED`**. The MySQL driver ignores that parameter and would connect without TLS,
+   so the server refuses to start with it; TLS comes from `DB_SSL` instead.
+   ```
+   mysql://avnadmin:<password>@<host>.aivencloud.com:<port>/defaultdb
+   ```
+   URL-encode special characters in the password (`@` → `%40`, `/` → `%2F`).
+4. Optional check from your machine (inline variables take precedence over a local `.env`):
+   ```bash
+   pnpm build
+   NODE_ENV=production APP_ORIGIN=https://example.com AUTH_SECRET="$(openssl rand -hex 32)" \
+     DATABASE_URL='<url from 3>' DB_SSL=true DB_SSL_CA="$(cat ca.pem)" node dist/migrate.js
+   ```
+   `Migrations applied.` means TLS (with certificate and hostname verification) and credentials
+   work. Render will also run this on every start.
+
+### 2. Generate the secret
+
+```bash
+openssl rand -hex 32
+```
+
+Keep it in a password manager. Placeholders and the CI secret are refused in production.
+Changing it later signs everyone out.
+
+### 3. Create the web service (Render Blueprint)
+
+1. Render dashboard → **New → Blueprint** → connect the GitHub repository and choose the branch
+   that contains `render.yaml`.
+2. Render reads `render.yaml`: one Docker web service on the free plan, health check
+   `/api/health`, start command `node dist/migrate.js && exec node dist/index.js`. It then asks for
+   each environment variable:
+
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | from step 1.3 |
+   | `DB_SSL` | `true` |
+   | `DB_SSL_CA` | the full contents of `ca.pem`, including the `BEGIN`/`END` lines |
+   | `AUTH_SECRET` | from step 2 |
+   | `APP_ORIGIN` | `https://<service-name>.onrender.com` (no trailing slash; see 3.4) |
+   | `TRUST_PROXY` | `1` (see step 5) |
+   | `CAMPUS_TIMEZONE` | e.g. `Asia/Kolkata` |
+   | `DEMO_MODE` | `true` |
+
+   `NODE_ENV=production` and `PORT` are already handled (the Dockerfile sets `NODE_ENV`; Render
+   sets `PORT` and the server listens on it). `DEMO_RESET_HOUR` (default `4`, campus time) is
+   optional.
+3. Apply. The first build takes several minutes. In the service's **Logs**, a good start shows
+   `Migrations applied.`, `QueueSense listening` and `Demo data reset`.
+4. Compare the URL Render shows at the top of the service with `APP_ORIGIN`. If Render added a
+   suffix (e.g. `queuesense-ab12.onrender.com`), update `APP_ORIGIN` under **Environment**; Render
+   redeploys. With the wrong origin the site loads, but every sign-in fails with
+   "Cross-origin request blocked."
+
+### 4. Demo data
+
+With `DEMO_MODE=true` nothing has to be run by hand:
+
+- **First start:** an empty database is seeded with the demo campus and three demo accounts
+  (student, staff on every counter, admin). Their passwords are random and never shown; visitors
+  sign in with the landing page's demo buttons (`auth.demoLogin`).
+- **Daily:** the demo data is wiped and reseeded once per campus day after `DEMO_RESET_HOUR`.
+  If the service was asleep at that hour, the reset happens when it next wakes.
+- **On demand,** from your machine (Render's free plan has no shell):
+  ```bash
+  DEMO_MODE=true DATABASE_URL='<url>' DB_SSL=true DB_SSL_CA="$(cat ca.pem)" \
+    AUTH_SECRET='<secret>' pnpm db:seed:demo
+  ```
+  Open browser tabs are signed out by a reset.
+
+The reset refuses to run if the database holds any account that isn't a demo account, so it
+can't wipe a real deployment. For a real (non-demo) deployment instead, leave `DEMO_MODE` unset
+and create the first administrator from your machine with the same variables:
+`node dist/create-admin.js --email you@example.com --name "Your Name"`, then open `/activate`.
+
+### 5. Check it over HTTPS
+
+Replace `$APP` with your `https://…onrender.com` origin.
+
+```bash
+curl -s $APP/api/health                     # {"status":"ok",...,"database":"up",...}
+curl -sI $APP/ | grep -iE 'strict-transport|content-security|content-encoding'
+curl -s $APP/api/trpc/auth.demo             # {"enabled":true,"roles":["STUDENT","STAFF","ADMIN"]}
+```
+
+Then in a browser: open the site, use a demo button, join a queue as the student in one window,
+call it as staff in another (a private window gets its own session), and check that the **Live**
+badge stays green and the student's screen updates without reloading.
+
+`TRUST_PROXY=1` must make the server see each visitor's real IP, or per-IP sign-in limits would
+lump everyone together. To check: note your public IP (`curl -s https://api.ipify.org`), sign in
+once, and look at the newest row of `sessions.ip_address` in the database; it should be your IP.
+
+### 6. Keep it awake (UptimeRobot)
+
+A free Render service sleeps after 15 minutes without traffic. In UptimeRobot add an **HTTP(s)**
+monitor for `$APP/api/health` at a 5-minute interval. It keeps the service awake (one service
+running all month stays within the 750 free hours) and alerts you if health turns `503`
+(database down). Each check also runs `select 1` against the database.
 
 ## Proxy notes (nginx)
 
@@ -113,6 +203,9 @@ location / {
 
 - `GET /api/health` → 200 `{status:"ok", checks:{database, databaseLatencyMs, realtime}}`, 503 when
   the database is unreachable. No secrets are included.
+- Responses over 1 KB (HTML, JS, CSS, JSON) are compressed with brotli or gzip, whichever the
+  browser offers. The SSE stream at `/api/realtime` is never compressed or buffered, so a proxy
+  in front doesn't need to (and shouldn't) compress it either.
 - JSON logs on stdout/stderr with secrets redacted.
 - Graceful shutdown on SIGTERM/SIGINT (closes SSE streams, which clients reconnect and resync).
 
@@ -129,5 +222,5 @@ location / {
 
 ## Requires external setup
 
-A host, a domain with TLS, a managed MySQL database, and secret storage for `AUTH_SECRET`. No real
-deployment has been performed.
+A host, a managed MySQL database and secret storage for `AUTH_SECRET` (Render's environment
+settings work). A custom domain is optional; Render's `onrender.com` address has TLS.

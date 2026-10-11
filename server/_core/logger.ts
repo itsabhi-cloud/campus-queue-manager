@@ -11,12 +11,29 @@ const order: Record<Level, number> = {
 /** Keys whose values must never reach the logs. */
 const REDACT = /pass(word)?|secret|token|cookie|authorization|code|dataurl/i;
 
+/**
+ * Drizzle's "Failed query" errors append the bound values ("\nparams: …"), which can be password
+ * hashes, session digests or emails. Keep the SQL shape, drop the values.
+ */
+function withoutQueryParams(text: string | undefined) {
+  return text?.replace(/\nparams: .*/g, "\nparams: [redacted]");
+}
+
 function scrub(value: unknown, depth = 0): unknown {
   if (value instanceof Error) {
+    const code = (value as { code?: unknown }).code;
     return {
       name: value.name,
-      message: value.message,
-      stack: ENV.NODE_ENV === "production" ? undefined : value.stack,
+      message: withoutQueryParams(value.message),
+      ...(typeof code === "string" ? { code } : {}),
+      stack:
+        ENV.NODE_ENV === "production"
+          ? undefined
+          : withoutQueryParams(value.stack),
+      // The driver error (e.g. ER_DUP_ENTRY, a TLS failure) explains why the query failed.
+      ...(value.cause !== undefined && depth < 4
+        ? { cause: scrub(value.cause, depth + 1) }
+        : {}),
     };
   }
   if (!value || typeof value !== "object" || depth > 4) return value;
@@ -28,6 +45,8 @@ function scrub(value: unknown, depth = 0): unknown {
   }
   return out;
 }
+
+export const scrubForLog = scrub;
 
 function write(
   level: Level,
