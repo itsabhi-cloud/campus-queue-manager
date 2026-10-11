@@ -7,6 +7,38 @@ leave the physical line, watch their live position and an estimated wait, and ge
 their turn approaches. Staff run counters from a console; administrators configure services,
 people and policy.
 
+## What it looks like
+
+The design takes its cues from printed queue tickets and "now serving" boards. A student's token is
+the one bold element on the screen: the number, how many people are ahead and an estimated wait,
+readable at a glance. Signal yellow is reserved for "it's your turn". Students get a phone-first
+layout with a bottom tab bar; staff and admins get a desktop console. Every update arrives live
+over Server-Sent Events, without a refresh.
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="900" alt="Staff press Call next and adjust traffic; the student's ticket updates live and finally turns yellow when they are called">
+</p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/student-home.png" alt="Student home on a phone with an active ticket and campus services"><br><sub>Student home: active ticket and live service list</sub></td>
+    <td width="33%"><img src="docs/images/student-ticket.png" alt="Token detail on a phone showing position, people ahead and estimated wait"><br><sub>Token: position, people ahead, estimate and what changed</sub></td>
+    <td width="33%"><img src="docs/images/student-called.png" alt="Called ticket in signal yellow telling the student which counter to go to"><br><sub>Called: yellow means go</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/staff-console.png" alt="Staff counter console with the waiting list and call, serve and skip controls"><br><sub>Staff counter console</sub></td>
+    <td><img src="docs/images/notifications.png" alt="Student notifications explaining a traffic delay and a priority change"><br><sub>Notifications explain every change</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/admin-overview.png" alt="Admin overview with live stats, needs-attention list, system health and charts"><br><sub>Admin overview</sub></td>
+    <td><img src="docs/images/camera-station.png" alt="Camera station showing an aggregate head count and traffic level"><br><sub>Camera station: counts people, never identifies them</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/images/landing.png" width="900" alt="QueueSense landing page: Don't stand in line. Know your turn."></p>
+
+How these were captured: [docs/images/README.md](docs/images/README.md).
+
 ## For reviewers: where to look
 
 | Area | What to look at |
