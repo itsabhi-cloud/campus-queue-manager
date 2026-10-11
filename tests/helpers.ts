@@ -199,7 +199,8 @@ export async function expectAppError(
     const code = (error as { appCode?: string }).appCode;
     if (code !== appCode)
       throw new Error(
-        `Expected appCode ${appCode} but got ${code ?? "none"}: ${(error as Error).message}`
+        `Expected appCode ${appCode} but got ${code ?? "none"}: ${(error as Error).message}`,
+        { cause: error }
       );
     return error as Error;
   }
