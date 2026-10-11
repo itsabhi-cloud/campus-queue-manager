@@ -54,9 +54,51 @@ MySQL); "Manual" means checked in the browser or with HTTP requests on 2026-09-2
 | **Bulk import** | Preview, validation, duplicates, atomic commit, codes | Invalid/duplicate/existing rows flagged; >5000 rows rejected; `role` column ignored (always STUDENT, PENDING); re-import creates nothing | Pass | Auto + manual UI |
 | **Security** | No leakage; CSRF; headers | Generic 500 text; malformed JSON → 400; cross-origin POST → 403; CSP/HSTS in production; production refuses http/localhost origin | Pass | Auto + manual |
 | **Accessibility** | WCAG 2.1 AA automated checks | axe-core on 21 screens/dialogs: 0 violations after fixes; keyboard sign-in; drawer focus trap | Pass | Screen-reader session not performed |
-| **Responsive** | No horizontal scroll; readable at phone widths | 360/390/768/1024/1280/1440 checked; admin tables stack with labels | Pass | Manual |
-| **Build** | Types, tests, production bundle | `tsc` clean; 114/114; build OK | Pass | |
+| **Responsive** | No horizontal scroll; readable at phone widths | 360/390/768/1024/1280/1440 checked; admin tables stack with labels. 2026-10-11: every student, staff and admin screen re-checked at 360×780 with touch emulation; no horizontal overflow; notification and history rows reflowed; 44 px touch targets on text buttons, tabs and back links | Pass | Manual + scripted overflow check |
+| **Build** | Types, tests, production bundle | `tsc` clean; 115/115; build OK (2026-10-11) | Pass | |
+| **Lighthouse** | 90+ in all four categories | Accessibility, Best Practices, SEO: 100 on every page tested. Performance: desktop 98–99; mobile 76–83 | Partial | Mobile Performance is held back by uncompressed responses; see [Lighthouse audit](#lighthouse-audit-2026-10-11) |
 | **Database** | Clean migration; constraints; no demo data | 19 tables, 31 FK, 11 unique, 6 CHECK, 0 users; idempotent | Pass | Manual on scratch DB |
 | **Deployment** | Production boot on https origin | Boots; health OK; guards work | Partial | Hosting, TLS and managed DB are external; Docker image not built |
 | **Three-role acceptance (UI)** | Student, staff and admin use the real UI at the same time | Every step passed; 2 bugs and 5 UX issues found and fixed (final-verification-report §28–30) | Pass | Manual, three concurrent sessions |
 | **Demo flow (12 steps)** | Join → call → traffic → priority → merge → camera → admin | All steps pass; student received QUEUE_JOINED, WAIT_INCREASED, PRIORITY_ADJUSTMENT, QUEUE_MERGED over SSE | Pass | Script against dev server |
+
+## Lighthouse audit (2026-10-11)
+
+**Setup.** Lighthouse 12.2.1 in headless Chrome 154 on a MacBook, against a local production build
+(`pnpm build && pnpm start` on `http://localhost` with `ALLOW_INSECURE_ORIGIN=true`) and the
+development seed data. "Mobile" is Lighthouse's default profile (emulated phone, simulated slow 4G:
+150 ms RTT, ~1.6 Mbps, 4× CPU slowdown); "Desktop" is `--preset=desktop`. Signed-in pages were run
+as a seeded student with the browser cache cleared before each run, so they are cold loads like the
+public pages. Every page was run three times; the table shows the median (runs differed by at most
+2 points).
+
+| Page | Mobile Perf | Mobile A11y | Mobile BP | Mobile SEO | Desktop Perf | Desktop A11y | Desktop BP | Desktop SEO |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Landing `/` | 83 | 100 | 100 | 100 | 99 | 100 | 100 | 100 |
+| Sign in `/login` | 83 | 100 | 100 | 100 | 99 | 100 | 100 | 100 |
+| 404 page | 83 | 100 | 100 | 100 | 99 | 100 | 100 | 100 |
+| Student home `/app` | 76 | 100 | 100 | 100 | 98 | 100 | 100 | 100 |
+| Service `/app/services/administration` | 77 | 100 | 100 | 100 | 98 | 100 | 100 | 100 |
+
+**Fixed during the audit.**
+
+- Layout shift on the student home page: CLS 0.406 → 0–0.012 on mobile (stable heading; one
+  placeholder until both lists load).
+- `label-content-name-mismatch` on the profile chip in the top bar (accessible name now matches the
+  visible text).
+- Public pages no longer download the signed-in shell: entry chunk 301.8 kB → 263.6 kB
+  (gzip 94.1 → 82.2 kB). Mobile Performance on public pages went from 80 to 83.
+- `robots.txt` added (the SPA fallback previously answered `/robots.txt` with HTML), plus favicon
+  PNGs, a web manifest and Open Graph tags.
+
+**Why mobile Performance is below 90.** The server sends JavaScript and CSS uncompressed;
+Lighthouse's top opportunity on every page is "Enable text compression" (293 KiB on the public pages
+and 339 KiB on `/app`, an estimated 1.5–1.8 s saving on the mobile profile). The rest is first-load JavaScript (React and the
+data layer) that every page needs. As an experiment, the same build was served through a temporary
+gzip proxy (not part of the repository); one mobile run per page then scored **98** (`/`, `/login`,
+404), **93** (`/app`) and **96** (`/app/services/administration`). Enabling compression on the server
+or the hosting proxy is the outstanding change; these projected figures are not the recorded scores.
+
+**Not covered.** Staff and admin pages were not audited with Lighthouse (they are desktop tools and
+were checked with the axe-core audit above). Scores on the hosted demo will differ with real network
+conditions and the host's compression settings.
