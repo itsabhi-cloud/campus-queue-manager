@@ -26,6 +26,10 @@ const schema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** Only for running a production build on your own machine over http://localhost. */
   ALLOW_INSECURE_ORIGIN: z.enum(["true", "false"]).default("false"),
+  /** Connect to MySQL over TLS (managed providers such as Aiven require it). */
+  DB_SSL: z.enum(["true", "false"]).default("false"),
+  /** PEM certificate of the provider's CA. Literal "\n" sequences are accepted for one-line values. */
+  DB_SSL_CA: z.string().optional(),
 });
 
 /**
@@ -60,6 +64,41 @@ export function productionSecretProblem(secret: string): string | null {
   return null;
 }
 
+export type DatabaseSsl = {
+  ca?: string;
+  rejectUnauthorized: true;
+  verifyIdentity: true;
+};
+
+/**
+ * TLS options for the MySQL pool. The server certificate is always verified, including that it was
+ * issued for the DATABASE_URL host (mysql2 skips that check unless `verifyIdentity` is set). The
+ * chain is checked against `DB_SSL_CA` when given (providers with their own CA, such as Aiven),
+ * otherwise against Node's built-in public CAs.
+ * Returns a problem description instead of options when the combination is invalid.
+ */
+export function databaseSsl(
+  enabled: string | undefined,
+  caInput: string | undefined
+): { ssl: DatabaseSsl | undefined; problem: string | null } {
+  const ca = caInput?.trim().replace(/\\n/g, "\n") || undefined;
+  if (enabled !== "true")
+    return {
+      ssl: undefined,
+      problem: ca ? "DB_SSL_CA is set but DB_SSL is not true." : null,
+    };
+  if (ca && !ca.includes("-----BEGIN CERTIFICATE-----"))
+    return {
+      ssl: undefined,
+      problem:
+        "DB_SSL_CA must be the PEM text of the CA certificate (-----BEGIN CERTIFICATE----- …).",
+    };
+  return {
+    ssl: { ca, rejectUnauthorized: true, verifyIdentity: true },
+    problem: null,
+  };
+}
+
 export type Env = z.infer<typeof schema>;
 
 function loadEnv(): Env {
@@ -82,6 +121,9 @@ function loadEnv(): Env {
     );
   }
   const env = parsed.data;
+  const sslProblem = databaseSsl(env.DB_SSL, env.DB_SSL_CA).problem;
+  if (sslProblem)
+    throw new Error(`Invalid environment configuration:\n  - ${sslProblem}`);
   if (env.NODE_ENV === "production") {
     const problem = productionOriginProblem(
       env.APP_ORIGIN,

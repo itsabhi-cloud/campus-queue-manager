@@ -43,9 +43,20 @@ one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`.
 | `NODE_ENV` | `production` (set by `pnpm start`; set it yourself if you run `node dist/index.js`) |
 | `APP_ORIGIN` | Your public `https://` origin. The server refuses to start with `http://` or `localhost`. |
 | `AUTH_SECRET` | ≥ 32 random characters, stored in the host's secret manager |
-| `DATABASE_URL` | Managed MySQL URL; prefer TLS if the provider offers it |
+| `DATABASE_URL` | Managed MySQL URL |
+| `DB_SSL` | `true` to connect over TLS (required by managed providers such as Aiven) |
+| `DB_SSL_CA` | PEM text of the provider's CA certificate, if it isn't signed by a public CA (Aiven: yes) |
 | `TRUST_PROXY` | `1` behind the platform's load balancer |
 | `CAMPUS_TIMEZONE` | Campus time zone |
+
+### Database TLS
+
+With `DB_SSL=true` the pool connects over TLS and refuses the connection unless the server
+certificate chains to a trusted CA **and** was issued for the host in `DATABASE_URL`. The trusted
+CA is `DB_SSL_CA` when set, otherwise Node's built-in public CAs. `DB_SSL_CA` takes the certificate
+text itself (not a file path); paste it multi-line, or on one line with `\n` between lines. Setting
+`DB_SSL_CA` without `DB_SSL=true`, or a value that isn't PEM, stops the server at startup. The
+migration and admin scripts use the same pool, so they need the same two variables.
 
 Cookies are `HttpOnly; Secure; SameSite=Lax` in production. There is no CORS configuration because
 the browser only ever talks to its own origin.
