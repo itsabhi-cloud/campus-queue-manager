@@ -697,6 +697,9 @@
   gap: var(--s-4);
   margin-bottom: var(--s-4);
 }
+.admin-grid-top {
+  align-items: start;
+}
 .admin-grid .panel + .panel {
   margin-top: 0;
 }
