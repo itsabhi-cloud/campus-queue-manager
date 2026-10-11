@@ -17,6 +17,8 @@ export type SessionUser = {
   name: string;
   role: Role;
   status: AccountStatus;
+  /** Shared demo account (DEMO_MODE): some actions are blocked. Absent means false. */
+  isDemo?: boolean;
 };
 
 const TOUCH_INTERVAL_MS = 5 * 60_000;
@@ -78,6 +80,7 @@ export async function resolveSession(
       name: users.name,
       role: users.role,
       status: users.status,
+      isDemo: users.isDemo,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -98,6 +101,7 @@ export async function resolveSession(
       name: row.name,
       role: row.role,
       status: row.status,
+      isDemo: row.isDemo,
     },
   };
 }

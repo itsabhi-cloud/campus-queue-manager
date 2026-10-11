@@ -64,6 +64,8 @@ export const users = mysqlTable(
     failedLoginCount: int().notNull().default(0),
     lockedUntil: timestamp({ fsp: 3 }),
     lastSignedInAt: timestamp({ fsp: 3 }),
+    /** Created by the demo seed (DEMO_MODE). Demo accounts are shared and some actions are blocked. */
+    isDemo: boolean().notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

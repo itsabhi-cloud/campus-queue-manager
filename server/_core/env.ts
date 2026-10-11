@@ -37,6 +37,13 @@ const schema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   /** Only for running a production build on your own machine over http://localhost. */
   ALLOW_INSECURE_ORIGIN: z.enum(["true", "false"]).default("false"),
+  /**
+   * Public demo instance: one-click sign-in to seeded demo accounts, a nightly reset, and demo
+   * accounts blocked from password changes and destructive admin actions. Use a dedicated database.
+   */
+  DEMO_MODE: z.enum(["true", "false"]).default("false"),
+  /** Campus-time hour (0–23) after which the demo data is reset once per day. */
+  DEMO_RESET_HOUR: z.coerce.number().int().min(0).max(23).default(4),
   /** Connect to MySQL over TLS (managed providers such as Aiven require it). */
   DB_SSL: z.enum(["true", "false"]).default("false"),
   /** PEM certificate of the provider's CA. Literal "\n" sequences are accepted for one-line values. */

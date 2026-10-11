@@ -579,6 +579,8 @@ export async function createUser(
           name: input.name,
           role: input.role,
           status: "PENDING",
+          // Keeps restrictions on anything a shared demo admin creates, and lets the reset wipe it.
+          isDemo: actor.isDemo ?? false,
         })
         .$returningId();
       if (input.role === "STUDENT") {

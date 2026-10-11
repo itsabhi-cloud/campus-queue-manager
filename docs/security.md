@@ -97,6 +97,29 @@ and validated at startup. Nothing secret is exposed to the client bundle (no `VI
 - Development seed credentials live in `scripts/seed-dev.ts` by design (local testing only; the seed
   refuses to run with `NODE_ENV=production`, and production databases start with zero users).
 
+## Public demo mode
+
+`DEMO_MODE=true` is for a showcase instance with its own database.
+
+- **Sign-in**: `auth.demo` (public query) returns `{ enabled, roles }`; `auth.demoLogin({ role })`
+  signs into the shared demo account for that role and returns the same user object and session
+  cookie as `auth.login`. With `DEMO_MODE` off it returns `FORBIDDEN`. Limited to 60 per IP per 10
+  minutes (each creates a session).
+- **Accounts**: created by the demo seed with `users.is_demo = true` and random passwords that are
+  never stored or shown, so password sign-in can't reach them. Accounts a demo admin creates are
+  flagged as demo too, so they carry the same restrictions.
+- **Blocked for demo accounts** (`FORBIDDEN`): changing password, uploading a profile photo (it
+  would be shown to every visitor), and the admin actions that lock people out or change the demo
+  for everyone: suspending/disabling users, changing roles, issuing access codes, committing a CSV
+  import and changing system settings. Queue, staff and catalog actions stay available; the daily
+  reset undoes them.
+- **Reset**: wipes every table and reseeds, once per campus day after `DEMO_RESET_HOUR`, on startup
+  if the database is empty, or on demand with `node dist/seed-demo.js`. It refuses while any
+  non-demo account exists, so a real deployment started with `DEMO_MODE=true` by mistake is not
+  wiped. Resets sign everyone out.
+- **Privacy**: anyone can be the demo admin and read the audit log, so in demo mode the audit log
+  doesn't record IP addresses.
+
 ## Production review (2026-10-11)
 
 Checked against the production build (`NODE_ENV=production`, `node dist/index.js`) and the code:
