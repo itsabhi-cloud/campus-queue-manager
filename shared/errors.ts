@@ -1,0 +1,22 @@
+/** Stable, user-safe error codes returned in tRPC error `data.appCode`. */
+export const APP_ERROR_CODES = [
+  "UNAUTHENTICATED",
+  "SESSION_EXPIRED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "VALIDATION",
+  "RATE_LIMITED",
+  "INVALID_CREDENTIALS",
+  "ACCOUNT_LOCKED",
+  "ACCOUNT_INACTIVE",
+  "INVALID_CODE",
+  "SERVICE_UNAVAILABLE",
+  "COUNTER_UNAVAILABLE",
+  "QUEUE_FULL",
+  "DUPLICATE_ACTIVE_TOKEN",
+  "TOO_MANY_ACTIVE_TOKENS",
+  "INVALID_TRANSITION",
+  "CONFLICT",
+  "INTERNAL",
+] as const;
+export type AppErrorCode = (typeof APP_ERROR_CODES)[number];

@@ -1,345 +1,241 @@
 # QueueSense
 
-## Don’t stand in line. Know your turn.
+**Don't stand in line. Know your turn.**
 
-QueueSense is an AI-assisted smart queue management prototype for high-demand service counters. It combines **browser-based computer vision** with a **digital token queue**, allowing people to leave a physical line and monitor their turn remotely.
+QueueSense is a realtime queue platform for busy campus services. Students take a digital token,
+leave the physical line, watch their live position and an estimated wait, and get notified when
+their turn approaches. Staff run counters from a console; administrators configure services,
+people and policy.
 
-> **Product principle:** computer vision estimates the physical queue; digital tokens represent people in the managed queue. The two layers are intentionally separate. QueueSense never performs facial recognition or person-to-token matching.
+## For reviewers: where to look
 
-## Live demo
-
-- **Preview:** https://3000-i64ox1pwhojvyv6sdzcab-468873ac.sg2.manus.computer
-- **Student dashboard:** `/student`
-- **Staff console:** `/staff`
-- **Camera station:** `/camera`
-- **Admin insights:** `/admin`
-
-The default demo is zero-setup: it persists state in `localStorage` and synchronizes browser tabs through `BroadcastChannel`, so the three-device hackathon flow works even before a hosted database is configured. The Supabase schema and adapter plan are included in [`docs/supabase-schema.sql`](./docs/supabase-schema.sql).
+| Area | What to look at |
+| --- | --- |
+| Stack | React 19 + TypeScript (Vite) · Express + tRPC · MySQL 8 + Drizzle ORM · Server-Sent Events · TensorFlow.js |
+| Queue engine | [`server/queue/engine.ts`](server/queue/engine.ts): transactions with row locks, guarded state transitions, priority, merge strategies, wait estimates ([docs](docs/queue-engine.md)) |
+| Data integrity | One active token per student per queue enforced by a generated column + unique index ([`drizzle/schema.ts`](drizzle/schema.ts), [docs](docs/database.md)) |
+| Security | Server-side sessions (HMAC-stored tokens, HttpOnly cookies), RBAC plus object-level checks, CSRF origin check, production config guards ([docs](docs/security.md)) |
+| Realtime | Post-commit, identifier-only SSE events; clients refetch and resync after reconnecting ([docs](docs/realtime.md)) |
+| Tests | Unit and integration tests against a real MySQL database, including concurrency races and the full demo flow over HTTP + SSE ([`tests/`](tests)); CI runs them on every push |
+| Evidence | [Final verification report](docs/history/verification-report.md): what was verified, how, and what still needs a real environment |
 
 ## Problem
 
-Students and visitors lose time physically standing at admissions offices, accounts counters, libraries, hospitals, transport counters, and similar services. A raw people counter does not solve the waiting problem; the person needs a reliable digital place and a clear moment to return.
+Students lose time standing in physical lines at fee counters, print centres, cafeterias and lift
+lobbies, often without knowing whether the wait is five minutes or forty. Leaving the line means
+losing your place.
 
-## Solution workflow
+## Objectives
 
-```mermaid
-flowchart LR
-  A[Camera Station] --> B[COCO-SSD detects people locally]
-  B --> C[ROI filter + temporal smoothing]
-  C --> D[Aggregate physical queue metric]
-  D --> E[Approximate wait estimate]
-  E --> F[Student gets digital token]
-  F --> G[Student leaves the physical queue]
-  G --> H[Realtime token position + alert]
-  H --> I[Staff calls, serves, completes]
-```
+- Let students hold a place digitally and leave the physical line.
+- Show a live, authoritative position and an explainable wait estimate.
+- Tell students when their turn approaches, and when anything changes (calls, delays, merges).
+- Give staff a fast console for calling, serving, priority, pauses and merging counters.
+- Give administrators central control of services, people, analytics and an audit trail.
+- Estimate physical congestion with privacy-preserving computer vision, without identifying anyone.
+
+## Solution
+
+A student takes a digital token on their phone and walks away. The server holds their place,
+computes their position and an explainable wait estimate, and pushes every change live: when the
+line moves, when traffic slows it down, when a counter fails and its line is merged into another,
+and when it is their turn. Staff run each counter from a console; administrators manage services,
+people and policy centrally. Optional camera stations measure crowding near a counter without
+identifying anyone.
+
+It covers four campus services — **Administration, Printing, Cafeteria and Elevator/Lift** — with
+one configurable queue engine (no per-service code paths).
+
+> Honest scope: wait times are **estimates**, not appointments. Cafeteria support manages the
+> *line*, not food orders or payment. Elevator support estimates lift traffic and runs a *virtual
+> boarding queue*; it does not control lift hardware. Camera stations count people locally and send
+> only a number; they never identify anyone or link people to tokens.
 
 ## Features
 
-- Public landing page focused on the actual waiting problem
-- Student dashboard with service cards, queue size, estimated wait, digital token, people ahead, progress, cancellation, and status alerts
-- Staff console with call next, start serving, complete, skip, pause/resume, queue list, recent activity, and live metrics
-- Camera station with:
-  - webcam permission flow and friendly fallback when permission is unavailable
-  - TensorFlow.js + COCO-SSD script loading
-  - person-only detection
-  - visible bounding boxes
-  - configurable confidence threshold
-  - visible Queue Region of Interest (ROI)
-  - center-point ROI filtering
-  - raw count versus smoothed count
-  - local-only processing and privacy messaging
-  - demo controls for reliable judging without a webcam
-- Admin/insights dashboard with throughput chart, system health, service performance, and architecture explanation
-- Cross-tab realtime demo synchronization using `BroadcastChannel` and storage events
-- Deterministic valid token states: `WAITING → CALLED → SERVING → COMPLETED`, with `CANCELLED` and `SKIPPED` exits
-- Reset demo data action for repeatable presentations
-- Responsive layouts for desktop, tablet, and mobile
-- Vitest coverage for queue-position and wait-time logic plus the scaffold auth test
+| Area | What's implemented |
+| --- | --- |
+| Accounts | Email + password sign-in, scrypt hashes, server-side sessions (HTTP-only, SameSite=Lax cookies), one-time activation/reset codes, lockout and rate limits, account status (pending/active/suspended/disabled) |
+| Roles | `STUDENT`, `STAFF`, `ADMIN`, enforced on the server; staff only operate counters an admin assigned to them |
+| Catalogue | Service → Queue group → Counter, fully admin-configurable (service time, batch size, queue limit, merge strategy, camera assist, token prefixes) |
+| Queue engine | Row-locked transactions, concurrency-safe daily token numbers (e.g. `F001`), DB-enforced "one active token per queue per student", strict state machine |
+| Student | Active tokens with live position, people ahead, now serving, countdown, traffic and camera signal; join by counter or "shortest line"; cancel; history; notifications; profile |
+| Staff | Call next (or next batch for lifts), start serving, complete, skip no-show, cancel with reason, pause/resume, mark offline, merge queues, adjust traffic/delay, priority with reason |
+| Admin | Live analytics, live queues, people management, CSV bulk import with preview and error report, catalogue editor, staff assignments, camera stations, audit log, settings |
+| Realtime | Server-Sent Events; clients refetch authoritative state on each event and fully resync after reconnecting |
+| Notifications | Joined, almost-next, called, serving, completed, skipped, cancelled, merged, priority, position change, wait increased/decreased, counter paused/offline/resumed — with per-student preferences |
+| Computer vision | TensorFlow.js + COCO-SSD in the browser, person-only, ROI filter, median smoothing, aggregate-only reporting, stale detection |
 
-## Final architecture
+## Demo script (5–7 minutes)
 
-### Demo architecture
+**Before the demo** (not during it): run `pnpm db:reset:dev`. It rebuilds the demo data and **signs
+everyone out**. Start `pnpm dev`. Accounts in the same browser share a session, so give each role
+its own host (cookies are per host, and development accepts any of these origins):
+`http://localhost:3000` for the student, `http://127.0.0.1:3000` for staff and
+`http://admin.localhost:3000` for the admin. Separate browsers or private windows work too.
+Development logins are listed at the top of `scripts/seed-dev.ts` (development only; the seed
+refuses to run with `NODE_ENV=production` and a production database starts with no users).
+`pnpm demo:smoke` runs the same flow automatically as a pre-flight check (then reseed again).
 
-- **React + Vite + TypeScript** renders all dashboards.
-- `client/src/lib/demoStore.ts` owns the queue state, persistence, derived positions, and transitions.
-- `localStorage` provides persistence across refreshes.
-- `BroadcastChannel` plus the `storage` event synchronizes tabs and simulates the same realtime behavior judges will see across devices.
-- The camera station runs detection in the browser and writes only an aggregate physical count to the shared store.
-
-### Production architecture
-
-- React client remains the presentation layer.
-- Supabase Auth identifies students/staff/admins.
-- Supabase PostgreSQL stores services, counters, queue entries, events, camera stations, and aggregate metrics.
-- Supabase Realtime publishes queue entry, event, and metric changes.
-- Row Level Security limits staff actions to assigned counters and admin actions to configuration tables.
-- The server-side template layer remains available for protected operations and future RPC procedures; secret/service-role keys are never sent to the browser.
-
-### Explicit code layers
-
-| Layer | Code location | Responsibility |
+| Time | Show | Where |
 | --- | --- | --- |
-| Frontend | `client/src/pages`, `client/src/components`, `client/src/lib/demoStore.ts` | Responsive UI, camera inference, local fallback state, user interactions |
-| Backend | `server/queueDb.ts`, `server/_core/*` | Database connection, persistence helpers, auth/runtime boundary |
-| API | `server/routers.ts` via tRPC under `/api/trpc` | Typed queue status, token creation, queue event, and camera metric procedures |
-| Database | `drizzle/schema.ts` + `drizzle/0001_clear_nehzno.sql` | MySQL relational tables, foreign keys, indexes, and state/event history |
+| 0:00 | The problem: students stand in campus lines without knowing how long they'll wait. | Landing page |
+| 0:30 | **Student** (`student09@queuesense.dev`) opens *Administration → Accounts & Fees* and presses **Get a token**. The "You're in" banner and ticket appear (token, people ahead, estimated wait). | Browser A |
+| 1:00 | The student can leave the line: point at the live countdown and queue line. Also join *Printing → Report / Bulk Printing → Report Counter B* to show several active queues at once. | Browser A |
+| 1:30 | **Staff** (`staff.admin@queuesense.dev`) opens the Accounts desk shown on the student's ticket and presses **Call next**. The ticket updates without refresh ("Moved up to position…"). | Browser B → A |
+| 2:00 | Staff: **Adjust traffic** → Heavy, +5 min, "Lunch rush". The ticket shows "Wait up about … min: Lunch rush" and a notification explains it. | B → A |
+| 2:30 | Switch staff to `staff.print@queuesense.dev`, open *Report Counter B* and give the student's RB token **priority** with a reason ("Exam submission in 15 min"). The ticket shows *Priority* and "Moved up to position 1"; the students behind get "Queue order was updated…". | B → A |
+| 3:15 | Same staff: **Take offline or merge** on Report Counter B into Counter A ("Printer jam"). The student's RB ticket shows "Report Counter B became unavailable… Your place was kept" with the new position. | B → A |
+| 4:00 | **Camera station** (`staff.lift@queuesense.dev`, needs a webcam): aggregate head count and traffic level; privacy note. Without a camera, show the honest "Camera unavailable" state and explain queues work without it. | B |
+| 4:45 | **Admin** (`admin@queuesense.dev`): *Needs attention* (offline counter, heavy traffic) and *Recent operations* (priority, traffic, merge). | B |
+| 5:30 | Architecture and security: server as the source of truth, SSE realtime, row-locked transactions, RBAC, privacy-preserving CV. Finish by calling the student: the ticket turns yellow, "Go to … now". | Slides / docs |
 
-Frontend-to-backend integration uses **tRPC**, which is the typed equivalent of REST for this project. The shared `AppRouter` gives the React client compile-time request/response types and the scaffold maps procedures to `/api/trpc` without a second handwritten API client.
+## Architecture at a glance
 
-## Backend API contract
-
-| Procedure | Method | Purpose | Persistence |
-| --- | --- | --- | --- |
-| `queue.status` | query | Reports API mode, relational database mode, and realtime adapter status | Reads the database connection state |
-| `queue.join` | mutation | Creates the next sequence/token for a service and counter | Inserts `queueEntries` + `queueEvents` when the database is available |
-| `queue.event` | mutation | Records `JOINED`, `CALLED`, `SERVING`, `COMPLETED`, `SKIPPED`, or `CANCELLED` history | Inserts an auditable `queueEvents` row |
-| `queue.metric` | mutation | Stores aggregate people count and estimated wait from a camera station | Inserts `queueMetrics`; no video or identity data |
-
-The frontend calls `queue.status` from the shared shell so every dashboard visibly reports the active API/persistence mode. The local-first store remains the graceful fallback for a demo without seeded database records; the relational procedures are ready for the next adapter step.
-
-## Folder structure
-
-```text
-client/
-  index.html                     # app metadata + TensorFlow.js/COCO-SSD scripts
-  src/
-    App.tsx                      # route map and providers
-    index.css                    # QueueSense design system
-    components/
-      QueueSenseShell.tsx        # shell, nav, shared UI primitives
-      ui/                        # scaffold UI components
-    lib/
-      demoStore.ts               # local persistence + cross-tab sync + queue transitions
-      queueLogic.test.ts         # queue calculation tests
-    pages/
-      Landing.tsx
-      StudentDashboard.tsx
-      StaffDashboard.tsx
-      CameraStation.tsx
-      AdminDashboard.tsx
-docs/
-  supabase-schema.sql            # PostgreSQL schema, indexes, realtime, RLS
-server/
-  routers.ts                     # template tRPC/auth entry point
-  db.ts                          # template database access
-  _core/                         # managed auth/runtime infrastructure
-README.md
-vitest.config.ts
+```
+React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queue engine ──▶ MySQL 8 (Drizzle)
+      ▲                                   │                    (transactions,
+      └──────── SSE /api/realtime ◀── in-process broker ◀──── post-commit effects)
 ```
 
-## Technology stack
+More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
+[docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
+[docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) ·
+[docs/history/initial-audit.md](docs/history/initial-audit.md) (starting-point audit)
 
-| Layer | Technology | Reason |
-| --- | --- | --- |
-| Frontend | React 19, Vite, TypeScript | Fast iteration, typed component boundaries |
-| Styling | Tailwind 4 imports + QueueSense CSS tokens | Responsive layout with a distinctive visual system |
-| Icons | Lucide React | Lightweight, consistent, accessible icons |
-| Vision | TensorFlow.js + COCO-SSD | Browser-only inference with a pre-trained person detector |
-| Camera | `getUserMedia` + `<video>` + `<canvas>` | No video upload or separate ML server |
-| Demo persistence | `localStorage` + `BroadcastChannel` | Zero-setup multi-tab synchronization for judging |
-| Production database | Supabase PostgreSQL | Relational schema, auth, realtime, and RLS |
-| Backend scaffold | tRPC + Express + Drizzle + Manus OAuth | Typed server boundary and project-ready authentication |
-| Testing | Vitest + TypeScript check + Vite build | Fast validation before demos |
+## Technology
 
-## Data model and relationships
+TypeScript everywhere · React 19, Vite 7, wouter, TanStack Query, tRPC 11, Radix Dialog, Recharts,
+sonner, plain CSS design tokens (Atkinson Hyperlegible + Barlow Condensed) · Express 4 · Drizzle ORM + mysql2 · MySQL 8.0.16+ (CHECK constraints, generated columns) ·
+zod 4 · TensorFlow.js + COCO-SSD · Vitest.
 
-- `profiles` maps `auth.users` to a product role.
-- `services` define destinations and average service time.
-- `counters` belong to services and optionally map to assigned staff.
-- `queue_entries` belong to a counter/service and hold the digital token state.
-- `queue_events` form an auditable event history for each token.
-- `camera_stations` belong to counters and store ROI configuration, not video.
-- `queue_metrics` store aggregate people counts and approximate wait values over time.
+## Getting started
 
-### Important indexes
-
-- Active queue entries by `(counter_id, status, sequence_number)` for next-token selection.
-- User active entries by `(user_id, status)` for the student’s current token.
-- Queue events by `(queue_entry_id, created_at desc)` for activity history.
-- Metrics by `(camera_station_id, captured_at desc)` for latest camera state.
-
-### Realtime tables
-
-`queue_entries`, `queue_events`, and `queue_metrics` are the realtime publication surface. A student listens for their entry and the relevant counter; staff listens for queue membership and operational events; the public dashboard listens for recent aggregate metrics.
-
-## Computer vision design
-
-1. Request webcam permission only after the operator clicks **Use webcam**.
-2. Load COCO-SSD in the browser.
-3. Filter predictions to `class === "person"` and the configured confidence threshold.
-4. Draw the detections and ROI on a canvas overlay.
-5. Calculate each bounding-box center and count only centers inside the ROI.
-6. Apply a rolling median over recent counts to reduce one-frame jumps.
-7. Persist only the aggregate count and derived estimate.
-
-**Why COCO-SSD?** It is appropriate for a hackathon because it is pre-trained, browser-compatible, easy to explain, and supports person detection without training a custom model.
-
-**Why TensorFlow.js?** Inference can run locally in the browser, which reduces infrastructure, latency, and privacy exposure.
-
-**Why not facial recognition?** It is unnecessary to solve queue waiting and would introduce privacy, consent, bias, and security risks.
-
-## Wait-time formula
-
-```text
-physical_estimated_wait_minutes
-  = filtered_people_inside_roi × average_service_time_minutes
-
-digital_estimated_wait_minutes
-  = people_ahead_in_digital_queue × average_service_time_minutes
-```
-
-The UI deliberately says **Estimated**, **Approx.**, and **May vary**. Camera angle, occlusion, lighting, model confidence, service speed, and no-shows can all affect the result.
-
-## Roles and workflows
-
-### Student
-
-1. Open Live queues.
-2. Select Admissions Office.
-3. Review physical count and approximate wait.
-4. Select **Get digital token**.
-5. Monitor token, current token, people ahead, and progress remotely.
-6. Watch for **almost your turn / called** state.
-7. Return to the counter and see **Completed** after staff finishes.
-
-### Staff
-
-1. Open Staff console.
-2. Select the assigned service.
-3. Complete the current token or call the next token.
-4. Start serving, complete, or skip.
-5. Pause/resume the queue when the counter is unavailable.
-6. Observe physical count, queue list, activity, and service statistics.
-
-### Admin
-
-Review service health, throughput, realtime health, counter performance, and the privacy/architecture split. Production admin actions are protected by the `admin` role in the Supabase policies.
-
-## Setup and run locally
+Prerequisites: Node.js 20+ (tested on 24), pnpm 10 (`npx pnpm@10.4.1` works), MySQL 8.0.16+.
 
 ```bash
 pnpm install
-pnpm dev
+cp .env.example .env          # then fill in DATABASE_URL, TEST_DATABASE_URL, AUTH_SECRET
 ```
 
-The application runs at the local Vite/Express dev URL printed by the command.
+Create the databases (names are examples; the test database name **must end in `_test`**):
 
-Useful checks:
+```sql
+CREATE DATABASE queuesense CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE queuesense_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Apply migrations and choose how to populate the database:
 
 ```bash
-pnpm check       # TypeScript
-pnpm test        # Vitest (4 tests at the time of writing)
-pnpm build       # Vite client build + server bundle
+pnpm db:migrate
+pnpm db:seed:dev              # development only: demo catalogue, staff and students
+# or, for a real deployment:
+pnpm admin:create --email registrar@college.edu --name "Registrar Office"
 ```
 
-### Environment variables
+`admin:create` prints a one-time code; the admin opens `/activate` to set a password, then adds
+services, counters, staff and imports students from the UI.
 
-The full-stack template provides the runtime variables in its managed environment: `DATABASE_URL`, `JWT_SECRET`, `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL`, `OWNER_OPEN_ID`, `OWNER_NAME`, and the built-in API variables.
+Run it:
 
-For a hosted Supabase adapter, add:
-
-```text
-VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<public-anon-key>
+```bash
+pnpm dev                      # http://localhost:3000 (API + Vite dev server on one port)
 ```
 
-Only the public anon key belongs in the browser. Never expose a service-role key, private token, or database password in client code.
+### Development accounts (seed only)
 
-## Supabase setup
+`pnpm db:seed:dev` creates local test accounts documented at the top of
+[`scripts/seed-dev.ts`](scripts/seed-dev.ts) (an admin, four staff — one per service — and twelve
+students, plus two pending students whose activation codes are printed by the seed). The seed
+refuses to run with `NODE_ENV=production`; production never depends on demo accounts.
 
-1. Create a Supabase project.
-2. Run [`docs/supabase-schema.sql`](./docs/supabase-schema.sql) in the SQL editor.
-3. Enable email/password or the chosen auth provider.
-4. Create demo users and set their `profiles.role` to `student`, `staff`, or `admin`.
-5. Seed services, counters, and a camera station.
-6. Add the public URL and anon key as environment variables.
-7. Replace the demo-store read/write adapter with Supabase queries and subscribe to the three realtime tables.
-8. Keep the UI contracts unchanged: service summaries, queue entries, and status transitions remain the same.
+## Environment variables
 
-## End-to-end demo script
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | `mysql://user:pass@host:3306/db` (URL-encode special characters) |
+| `AUTH_SECRET` | yes | ≥ 32 random characters; HMAC key for session tokens and activation codes |
+| `APP_ORIGIN` | production | Public `https://` origin (production refuses `http://` or localhost); used for the CSRF origin check |
+| `CAMPUS_TIMEZONE` | no (`Asia/Kolkata`) | IANA zone for daily token numbering and hourly analytics |
+| `PORT` | no (`3000`) | HTTP port |
+| `SESSION_TTL_HOURS` | no (`168`) | Session lifetime |
+| `TRUST_PROXY` | behind a proxy | Express `trust proxy` value so client IPs (rate limits) are correct |
+| `LOG_LEVEL` | no (`info`) | `debug` · `info` · `warn` · `error` |
+| `TEST_DATABASE_URL` | tests | Database wiped and rebuilt by `pnpm test` (name must end in `_test`) |
+| `ALLOW_INSECURE_ORIGIN` | no | `true` only to run a production build locally over `http://localhost` |
 
-**Three-device version:**
+The server validates these at startup and exits with a clear message if they're wrong.
 
-1. Laptop 1: open `/camera`; show the ROI, bounding boxes, `4 people`, and `~12 min`.
-2. Laptop 2: open `/student`; select Admissions Office and show token `A018`, current `A014`, 3 ahead, and `~9 min`.
-3. Laptop 3: open `/staff`; show `A014` serving and `A015–A019` next.
-4. On staff: click **Complete**. Student view updates to remove A014 without refresh.
-5. On staff: click **Call next**. The next token becomes `CALLED`; student view shows the prominent called state when it reaches the demo student.
-6. Click **Start serving**, then **Complete**. Student view ends at `COMPLETED`; statistics increment.
-7. Return to `/camera` and change the demo count or use a webcam to demonstrate the physical estimate changing independently of the digital token queue.
-8. Click **Reset demo data** before repeating.
+## Commands
 
-## Testing checklist
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Development server with Vite HMR |
+| `pnpm check` | TypeScript type check (client, server, tests, scripts) |
+| `pnpm test` | Unit + integration tests (integration tests need `TEST_DATABASE_URL`) |
+| `pnpm build` | Production client bundle + bundled server in `dist/` |
+| `pnpm start` | Run the production build |
+| `pnpm db:generate` | Generate a migration after changing `drizzle/schema.ts` |
+| `pnpm db:migrate` | Apply migrations to `DATABASE_URL` |
+| `pnpm db:seed:dev` / `pnpm db:reset:dev` | Seed (or wipe and reseed) development data |
+| `pnpm admin:create` | Create/bootstrap an administrator (development, via tsx) |
+| `node dist/migrate.js` / `node dist/create-admin.js` | The same two tasks from the production build (no dev dependencies) |
+| `pnpm demo:smoke` | Runs the demo flow against a running, freshly seeded dev server (development only) |
+| `pnpm verify:model` | Loads the camera model in Node and runs inference once (needs network access to the model host) |
+| `pnpm format` | Prettier |
 
-- [x] Routes render: `/`, `/student`, `/staff`, `/camera`, `/admin`.
-- [x] Student token creation is idempotent for the demo student.
-- [x] People ahead ignores completed/cancelled entries.
-- [x] Wait estimate uses the configured average service time.
-- [x] Staff controls prevent calling when another token is active.
-- [x] Start serving requires `CALLED`.
-- [x] Complete/skip require an active token.
-- [x] Pause blocks new token creation.
-- [x] Camera permission failures switch to demo mode with a readable message.
-- [x] ROI count is separate from raw detections.
-- [x] Rolling median smoothing reduces count jitter.
-- [x] Cross-tab state uses BroadcastChannel/storage events and requires no manual refresh.
-- [x] `pnpm check` passes.
-- [x] `pnpm test` passes.
-- [x] `pnpm build` passes.
+## Roles
 
-## Known limitations
+- **Student** — browse services, join (one active token per queue, configurable overall limit),
+  cancel own tokens, see history, notifications and profile. Cannot change email, college ID or role.
+- **Staff** — operate only assigned counters: call/serve/complete/skip/cancel, pause/resume/offline,
+  merge within a queue group, traffic, priority (reason required). Cannot self-register or self-assign.
+- **Admin** — everything staff can do on every counter, plus people, catalogue, assignments,
+  imports, analytics, audit log and settings. The last active admin can't be removed.
 
-- The default demo store is intentionally local-first; it is not a replacement for Supabase in production.
-- Realtime synchronization is simulated across tabs until the Supabase adapter is connected.
-- Browser camera inference depends on camera position, lighting, occlusion, device performance, and model confidence.
-- Wait times are approximate and do not account for service variability, no-shows, or counter downtime.
-- Browser camera permissions require HTTPS or localhost and user consent.
-- The prototype does not claim guaranteed push notifications or production-grade surveillance accuracy.
-- Authentication and RLS are scaffolded for the production adapter; the hackathon demo is designed to be frictionless for judges.
+## Queue model (short version)
 
-## Future improvements
+`WAITING → CALLED → SERVING → COMPLETED`, with `SKIPPED` / `CANCELLED` exits. Tokens are
+`<counter prefix><daily sequence>` allocated under a row lock. Order is *priority first, then
+join order*. Estimates = `people ahead ÷ batch size × service time × traffic multiplier + remaining
+time of the current service + staff delay`. Details and assumptions: [docs/queue-engine.md](docs/queue-engine.md).
 
-- Connect `demoStore` to Supabase queries and Realtime subscriptions.
-- Add a server-side transition function/transaction so two staff devices cannot call the same token.
-- Add Web Push/SMS/email notifications with explicit opt-in.
-- Support multiple cameras per counter and confidence/calibration history.
-- Add wait-time calibration from completed service durations.
-- Add accessibility review, audit logs, rate limits, and automated RLS tests.
-- Add station-level health monitoring and offline retry queues.
+## Testing
 
-## Suggested Git workflow and commits
+`pnpm test` runs 114 tests in 14 files: pure logic (state machine, ordering/merge strategies,
+estimation, passwords, tokens, CSV, rate limiting, camera ROI/smoothing and error messages, browser
+notification gating) and integration tests against a real MySQL database (auth, password reset,
+RBAC, object-level authorization, 25 concurrent joins, duplicate-join races, priority, merges,
+traffic, notifications, imports, SSE delivery over HTTP, security headers, and the full demo flow
+over HTTP and SSE with separate student, staff and admin sessions).
 
-Use `main` for stable demos and short-lived feature branches:
+`pnpm verify:model` loads the COCO-SSD model used by the camera station in Node and runs inference
+on synthetic frames (a load-and-run check; it does not measure detection accuracy). Evidence for
+every area is in [docs/history/verification-report.md](docs/history/verification-report.md).
 
-```text
-feature/camera-cv
-feature/student-dashboard
-feature/staff-dashboard
-feature/supabase-realtime
-feature/ui
-feature/auth-security
-```
+## Deployment
 
-Suggested commits:
+One long-lived Node process (API + SSE + static client) and a MySQL 8 database. Use a container/VM
+host with long-lived HTTP connections (not serverless functions), one instance, HTTPS in front.
+A `Dockerfile` is included. Steps, platform guidance and what was verified locally:
+[docs/deployment.md](docs/deployment.md).
 
-```text
-feat: add QueueSense landing page and design system
-feat: add local digital token workflow
-feat: add camera ROI and smoothed person count
-feat: add staff queue controls and metrics
-feat: add cross-tab realtime demo synchronization
-feat: add Supabase schema and RLS policies
-test: cover queue position and wait estimates
-fix: handle camera permission fallback
-style: refine responsive dashboard layouts
-```
+## Notifications
 
-## Important technical decisions
+- **In-app**: persisted notification center plus live toasts over SSE (implemented and verified).
+- **Browser notifications**: optional, via the Notification API when the tab is in the background and
+  the user allowed it (implemented; only the "blocked" path has been tested).
+- **Email/SMS**: not implemented. Activation and password-reset codes are issued by administrators.
 
-1. **Local-first demo state:** a two-day hackathon needs a reliable demo without a secrets/setup failure. The adapter boundary makes hosted Supabase the next step rather than a blocker.
-2. **No face identity:** aggregate detection solves the problem and is safer than identity tracking.
-3. **ROI + median smoothing:** both are simple enough to explain to judges and address the most visible false-count issues.
-4. **Explicit state machine:** action buttons are enabled only for valid transitions so the UI mirrors the queue rules.
-5. **Separate physical and digital queues:** this preserves the product truth: a physical estimate is a signal, while a digital token is a managed place.
-6. **Minimal admin scope:** useful operations and analytics without overbuilding features that would not improve the demo.
+## Limitations
+
+- Wait times are heuristic estimates (see docs/queue-engine.md), not appointments.
+- Single API instance: realtime fan-out and rate limits are in memory.
+- No email delivery, self-service password reset, or administrator MFA.
+- Live webcam detection has not been tested on a physical camera in this environment.
+- No dark mode; no native mobile app (the web app is responsive and works on phones).
+- Automated accessibility checks pass (axe-core); a full screen-reader session has not been done.
+
+See [docs/testing.md](docs/testing.md) for exactly what was verified.
