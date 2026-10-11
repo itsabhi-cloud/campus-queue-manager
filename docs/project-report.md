@@ -1,7 +1,7 @@
 # QueueSense: project report
 
 Material for an academic submission. Every result below comes from tests or checks recorded in
-[final-test-matrix.md](final-test-matrix.md) and [final-readiness-audit.md](final-readiness-audit.md).
+[final-test-matrix.md](testing.md) and [final-readiness-audit.md](history/readiness-audit.md).
 
 ## Abstract
 
