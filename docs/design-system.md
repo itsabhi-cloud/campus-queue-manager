@@ -37,15 +37,17 @@ cards) → `layout.css` (shell, drawer, bottom nav, page layouts) → `landing.c
 | `queue/CameraSignal` | Fresh crowd count or "Camera offline — using queue data only" |
 | `ui/primitives` | `Chip` (one badge with tone + glyph), `StatusBadge`, `CounterBadge`, `TrafficBadge` (bars + word), `StatStrip`/`Stat`, `Note`, `PageHeader`, `PanelHead`, `EmptyState`, `ErrorState`, `LoadingBlock`, `Countdown`, `ConnectionBadge`, `ServiceIcon`, `Field` (wires `aria-invalid`/`aria-describedby`), `Tabs`, `Pagination` |
 | `ui/Dialog` | `Dialog` and `ConfirmDialog` (optional required reason, recorded by the server) |
-| `AppShell` | Sidebar (desktop), accessible drawer (tablet/phone staff and admin), bottom tab bar (student phones) |
+| `AppShell` | Sidebar (desktop), accessible drawer (tablet/phone staff and admin), bottom tab bar (student phones). Loaded lazily with the first signed-in page |
+| `BrandMark` | Logo link used on public pages and in the shell (kept separate so public pages don't load the shell) |
 
 ## Principles
 
 1. **The token is the hero.** Students should answer "where am I, how long, where do I go" in about
    two seconds from the ticket alone.
 2. **Yellow means go.** Signal yellow appears only when someone is called. The called ticket pulses
-   twice on arrival; that is the only animation not triggered by the user (and it respects
-   reduced motion).
+   twice on arrival; that is the only animation not triggered by the user. Page content also fades
+   in briefly (200 ms) when the user navigates. Both are cut to effectively zero when the system
+   asks for reduced motion.
 3. **Say what changed.** Each authoritative update is compared with the previous one and described
    in one line ("Moved up to position 2", "Wait up about 5 min: Lunch rush", "Moved to Report
    Counter A"). Screen readers hear it through a polite live region.
