@@ -255,3 +255,24 @@
   color: var(--ink-3);
   font-size: var(--text-xs);
 }
+.demo-accounts {
+  margin-top: var(--s-4);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.demo-accounts ul {
+  display: grid;
+  gap: var(--s-1);
+  margin: var(--s-2) 0;
+  padding: 0;
+  list-style: none;
+}
+.demo-accounts li span {
+  display: inline-block;
+  min-width: 4.5em;
+  color: var(--ink-3);
+}
+.demo-accounts code {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}

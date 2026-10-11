@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { z } from "zod";
+import { passwordSchema } from "../auth/password";
 
 /**
  * Validated runtime configuration. The server refuses to start with an invalid
@@ -44,6 +45,14 @@ const schema = z.object({
   DEMO_MODE: z.enum(["true", "false"]).default("false"),
   /** Campus-time hour (0–23) after which the demo data is reset once per day. */
   DEMO_RESET_HOUR: z.coerce.number().int().min(0).max(23).default(4),
+  /**
+   * Shared password for the three demo accounts, so the team can also sign in with email and
+   * password. Unset (or empty): each reset gives them a random password nobody knows.
+   */
+  DEMO_PASSWORD: z.preprocess(
+    value => (value === "" ? undefined : value),
+    passwordSchema.optional()
+  ),
   /** Connect to MySQL over TLS (managed providers such as Aiven require it). */
   DB_SSL: z.enum(["true", "false"]).default("false"),
   /** PEM certificate of the provider's CA. Literal "\n" sequences are accepted for one-line values. */

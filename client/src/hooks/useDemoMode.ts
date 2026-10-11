@@ -7,14 +7,15 @@ import { trpc } from "@/lib/trpc";
 
 /**
  * One-click demo sign-in. The server reports whether demo mode is on (DEMO_MODE) and which demo
- * accounts are ready:
+ * accounts are ready, plus their emails when they also accept a team password (DEMO_PASSWORD):
  *
- *   auth.demo       public query    → { enabled: boolean; roles: Role[] }
+ *   auth.demo       public query    → { enabled: boolean; roles: Role[]; accounts: { role; email }[] }
  *   auth.demoLogin  public mutation { role } → same result as auth.login; FORBIDDEN when off.
  */
 export type DemoMode = {
   enabled: boolean;
   roles: Role[];
+  accounts: Array<{ role: Role; email: string }>;
   pendingRole: Role | null;
   signInAs: (role: Role) => void;
 };
@@ -37,6 +38,7 @@ export function useDemoMode(): DemoMode {
   return {
     enabled: demo.data?.enabled ?? false,
     roles: demo.data?.roles ?? [],
+    accounts: demo.data?.accounts ?? [],
     pendingRole: login.isPending ? (login.variables?.role ?? null) : null,
     signInAs: (role: Role) => login.mutate({ role }),
   };

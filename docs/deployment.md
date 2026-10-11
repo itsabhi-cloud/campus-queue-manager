@@ -124,8 +124,8 @@ Changing it later signs everyone out.
    | `DEMO_MODE` | `true` |
 
    `NODE_ENV=production` and `PORT` are already handled (the Dockerfile sets `NODE_ENV`; Render
-   sets `PORT` and the server listens on it). `DEMO_RESET_HOUR` (default `4`, campus time) is
-   optional.
+   sets `PORT` and the server listens on it). `DEMO_RESET_HOUR` (default `4`, campus time) and
+   `DEMO_PASSWORD` (see step 4) are optional.
 3. Apply. The first build takes several minutes. In the service's **Logs**, a good start shows
    `Migrations applied.`, `QueueSense listening` and `Demo data reset`.
 4. Compare the URL Render shows at the top of the service with `APP_ORIGIN`. If Render added a
@@ -140,6 +140,12 @@ With `DEMO_MODE=true` nothing has to be run by hand:
 - **First start:** an empty database is seeded with the demo campus and three demo accounts
   (student, staff on every counter, admin). Their passwords are random and never shown; visitors
   sign in with the landing page's demo buttons (`auth.demoLogin`).
+- **Team password (optional):** set `DEMO_PASSWORD` to give all three demo accounts that password
+  instead, so the team can also use the normal sign-in form. The landing page keeps the buttons and
+  lists the three demo emails with "password: as provided by the team". The value must meet the
+  password policy (10–128 characters, at least one letter and one number), or the server refuses to
+  start. It takes effect at the next reset (run one on demand, below); it never appears on the page,
+  but anyone you give it to can sign in as the demo admin, so share it like any other credential.
 - **Daily:** the demo data is wiped and reseeded once per campus day after `DEMO_RESET_HOUR`.
   If the service was asleep at that hour, the reset happens when it next wakes.
 - **On demand,** from your machine (Render's free plan has no shell):
@@ -147,7 +153,9 @@ With `DEMO_MODE=true` nothing has to be run by hand:
   DEMO_MODE=true DATABASE_URL='<url>' DB_SSL=true DB_SSL_CA="$(cat ca.pem)" \
     AUTH_SECRET='<secret>' pnpm db:seed:demo
   ```
-  Open browser tabs are signed out by a reset.
+  Open browser tabs are signed out by a reset. The script hashes the `DEMO_PASSWORD` from *its own*
+  environment, so with a team password add `DEMO_PASSWORD='<password>'` to that command (and keep
+  it set on the server, or the next daily reset goes back to random passwords).
 
 The reset refuses to run if the database holds any account that isn't a demo account, so it
 can't wipe a real deployment. For a real (non-demo) deployment instead, leave `DEMO_MODE` unset
@@ -161,7 +169,7 @@ Replace `$APP` with your `https://…onrender.com` origin.
 ```bash
 curl -s $APP/api/health                     # {"status":"ok",...,"database":"up",...}
 curl -sI $APP/ | grep -iE 'strict-transport|content-security|content-encoding'
-curl -s $APP/api/trpc/auth.demo             # {"enabled":true,"roles":["STUDENT","STAFF","ADMIN"]}
+curl -s $APP/api/trpc/auth.demo             # {"enabled":true,"roles":["STUDENT","STAFF","ADMIN"],"accounts":[]}
 ```
 
 Then in a browser: open the site, use a demo button, join a queue as the student in one window,

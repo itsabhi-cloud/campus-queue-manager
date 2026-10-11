@@ -120,6 +120,19 @@ function DemoPanel() {
           );
         })}
       </div>
+      {demo.accounts.length > 0 && (
+        <div className="demo-accounts">
+          <p>Or sign in with email and password:</p>
+          <ul>
+            {demo.accounts.map(({ role, email }) => (
+              <li key={role}>
+                <span>{DEMO_ROLES[role].label}</span> <code>{email}</code>
+              </li>
+            ))}
+          </ul>
+          <p>password: as provided by the team</p>
+        </div>
+      )}
     </section>
   );
 }

@@ -56,12 +56,14 @@ describeDb("demo mode", () => {
   beforeEach(resetDatabase);
   afterEach(() => {
     ENV.DEMO_MODE = "false";
+    ENV.DEMO_PASSWORD = undefined;
   });
 
   it("is off by default: info says so and sign-in is FORBIDDEN", async () => {
     expect(await callerFor(null).auth.demo()).toEqual({
       enabled: false,
       roles: [],
+      accounts: [],
     });
     await expectAppError(
       visitor().caller.auth.demoLogin({ role: "STUDENT" }),
@@ -87,11 +89,13 @@ describeDb("demo mode", () => {
     expect(await callerFor(null).auth.demo()).toEqual({
       enabled: true,
       roles: [],
+      accounts: [],
     });
     expect(await resetDemoData()).toEqual({ reset: true });
     expect(await callerFor(null).auth.demo()).toEqual({
       enabled: true,
       roles: ["STUDENT", "STAFF", "ADMIN"],
+      accounts: [],
     });
     const everyone = await db.select({ isDemo: users.isDemo }).from(users);
     expect(everyone.length).toBeGreaterThan(10);
@@ -118,6 +122,27 @@ describeDb("demo mode", () => {
       }),
       "INVALID_CREDENTIALS"
     );
+  });
+
+  it("with DEMO_PASSWORD, gives the demo accounts that password and lists their emails", async () => {
+    ENV.DEMO_MODE = "true";
+    ENV.DEMO_PASSWORD = "Team-demo-2026";
+    await resetDemoData();
+    expect((await callerFor(null).auth.demo()).accounts).toEqual([
+      { role: "STUDENT", email: DEMO_ACCOUNTS.STUDENT },
+      { role: "STAFF", email: DEMO_ACCOUNTS.STAFF },
+      { role: "ADMIN", email: DEMO_ACCOUNTS.ADMIN },
+    ]);
+    for (const role of ["STUDENT", "STAFF", "ADMIN"] as const) {
+      const user = await visitor().caller.auth.login({
+        email: DEMO_ACCOUNTS[role],
+        password: "Team-demo-2026",
+      });
+      expect(user).toMatchObject({ role, email: DEMO_ACCOUNTS[role] });
+    }
+    // The buttons keep working alongside it.
+    const { user } = await demoSession("STAFF");
+    expect(user.email).toBe(DEMO_ACCOUNTS.STAFF);
   });
 
   it("lets demo users run the demo but blocks password changes and destructive admin actions", async () => {

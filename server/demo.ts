@@ -1,7 +1,8 @@
 /**
  * Public demo mode (DEMO_MODE=true): one-click sign-in to shared, seeded demo accounts and a daily
- * reset of the demo data. Demo accounts have random passwords nobody knows, so the only way in is
- * `auth.demoLogin`. The reset wipes the database, so it refuses to run while any non-demo account
+ * reset of the demo data. Demo accounts get random passwords nobody knows, so the only way in is
+ * `auth.demoLogin`, unless DEMO_PASSWORD is set: then all three get that password and the landing
+ * page lists their emails for the normal sign-in as well. The reset wipes the database, so it refuses to run while any non-demo account
  * exists: a demo instance needs its own database.
  */
 import { randomBytes } from "node:crypto";
@@ -38,9 +39,16 @@ export function demoModeEnabled() {
   return ENV.DEMO_MODE === "true";
 }
 
+export type DemoInfo = {
+  enabled: boolean;
+  roles: Role[];
+  /** Ready demo accounts that sign in with DEMO_PASSWORD; empty when it isn't set. */
+  accounts: Array<{ role: Role; email: string }>;
+};
+
 /** What the landing page needs: whether demo sign-in is on, and for which roles it is ready. */
-export async function demoInfo(): Promise<{ enabled: boolean; roles: Role[] }> {
-  if (!demoModeEnabled()) return { enabled: false, roles: [] };
+export async function demoInfo(): Promise<DemoInfo> {
+  if (!demoModeEnabled()) return { enabled: false, roles: [], accounts: [] };
   const rows = await db
     .select({ email: users.email })
     .from(users)
@@ -52,9 +60,13 @@ export async function demoInfo(): Promise<{ enabled: boolean; roles: Role[] }> {
       )
     );
   const ready = new Set(rows.map(row => row.email));
+  const roles = ROLES.filter(role => ready.has(DEMO_ACCOUNTS[role]));
   return {
     enabled: true,
-    roles: ROLES.filter(role => ready.has(DEMO_ACCOUNTS[role])),
+    roles,
+    accounts: ENV.DEMO_PASSWORD
+      ? roles.map(role => ({ role, email: DEMO_ACCOUNTS[role] }))
+      : [],
   };
 }
 
@@ -89,7 +101,8 @@ export async function demoLogin(role: Role, req: Request, res: Response) {
   return publicUser(user);
 }
 
-async function randomPasswordHash() {
+async function demoPasswordHash() {
+  if (ENV.DEMO_PASSWORD) return hashPassword(ENV.DEMO_PASSWORD);
   // Never stored or shown anywhere: demo accounts are reachable only through demoLogin.
   return hashPassword(`${randomBytes(24).toString("base64url")}9a`);
 }
@@ -123,9 +136,9 @@ export async function resetDemoData(): Promise<DemoResetResult> {
       };
 
     const [admin, staff, student] = await Promise.all([
-      randomPasswordHash(),
-      randomPasswordHash(),
-      randomPasswordHash(),
+      demoPasswordHash(),
+      demoPasswordHash(),
+      demoPasswordHash(),
     ]);
     await truncateTables();
     invalidateSettingsCache();
