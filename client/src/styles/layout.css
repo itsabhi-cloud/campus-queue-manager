@@ -193,6 +193,16 @@
 .page-content:focus {
   outline: none;
 }
+/* Each route mounts a fresh shell, so this plays once per page change. */
+.page-content {
+  animation: page-in 200ms var(--ease);
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 .mobile-menu {
   display: none;
 }
@@ -392,6 +402,11 @@
   border-radius: var(--r-panel);
   background: var(--surface);
 }
+/* Keep the logo's tap padding but line its edge up with the card text. */
+.auth-card .brand-mark {
+  justify-self: start;
+  margin-left: calc(-1 * var(--s-2));
+}
 .auth-card h1 {
   font-size: var(--text-xl);
 }
@@ -404,6 +419,15 @@
   border-radius: var(--r-control);
   background: var(--fill);
   font-size: var(--text-sm);
+}
+.not-found-code {
+  font-size: 88px;
+  line-height: 0.9;
+  color: var(--violet);
+}
+.not-found-actions {
+  display: grid;
+  gap: var(--s-3);
 }
 .auth-links {
   font-size: var(--text-sm);
