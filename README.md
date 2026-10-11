@@ -92,11 +92,36 @@ refuses to run with `NODE_ENV=production` and a production database starts with 
 
 ## Architecture at a glance
 
+```mermaid
+flowchart LR
+  subgraph browser["Browser"]
+    ui["React 19 app<br/>student · staff · admin"]
+    cam["Camera station page<br/>TensorFlow.js + COCO-SSD<br/>(runs on the device)"]
+  end
+
+  subgraph node["One Node.js process (Express)"]
+    trpc["tRPC routers<br/>zod input · role checks · rate limits"]
+    engine["Queue engine<br/>row-locked MySQL transactions"]
+    effects["Post-commit effects"]
+    broker["In-process broker"]
+    sse["SSE stream<br/>GET /api/realtime"]
+    timers["Timers<br/>estimates every 60 s · session purge hourly<br/>demo reset daily (DEMO_MODE)"]
+  end
+
+  db[("MySQL 8<br/>Drizzle ORM")]
+  model[("Google model bucket<br/>COCO-SSD weights")]
+
+  ui -- "tRPC over HTTPS<br/>HttpOnly session cookie" --> trpc
+  cam -- "head count only<br/>camera.report" --> trpc
+  cam -. "downloads weights" .-> model
+  trpc --> engine --> db
+  engine -- "after commit" --> effects --> broker --> sse
+  sse -- "event ids; the browser refetches" --> ui
+  timers --> engine
 ```
-React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queue engine ──▶ MySQL 8 (Drizzle)
-      ▲                                   │                    (transactions,
-      └──────── SSE /api/realtime ◀── in-process broker ◀──── post-commit effects)
-```
+
+The server is the source of truth: browsers send intents over tRPC and are told *that* something
+changed over SSE, then refetch. Camera frames never leave the device; only counts are sent.
 
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·

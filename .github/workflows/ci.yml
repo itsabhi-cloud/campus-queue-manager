@@ -32,6 +32,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Type check
         run: pnpm check
+      - name: Lint
+        run: pnpm lint
       - name: Tests (unit + integration against MySQL 8)
         run: pnpm test
       - name: Production build

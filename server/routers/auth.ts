@@ -7,8 +7,15 @@ import {
   passwordSchema,
   publicUser,
 } from "../accounts";
+import { ROLES } from "../../shared/domain";
 import { clearSessionCookie, revokeSession } from "../auth/sessions";
-import { authedProcedure, publicProcedure, router } from "../_core/trpc";
+import { demoInfo, demoLogin } from "../demo";
+import {
+  authedProcedure,
+  notForDemo,
+  publicProcedure,
+  router,
+} from "../_core/trpc";
 
 export const authRouter = router({
   /** Current user, or null. Never throws, so the client can render public pages. */
@@ -41,7 +48,16 @@ export const authRouter = router({
     return { success: true } as const;
   }),
 
+  /** Whether one-click demo sign-in is on (DEMO_MODE) and which roles are ready. */
+  demo: publicProcedure.query(() => demoInfo()),
+
+  /** Signs into the shared demo account for a role. FORBIDDEN unless DEMO_MODE=true. */
+  demoLogin: publicProcedure
+    .input(z.object({ role: z.enum(ROLES) }))
+    .mutation(({ ctx, input }) => demoLogin(input.role, ctx.req, ctx.res)),
+
   changePassword: authedProcedure
+    .use(notForDemo)
     .input(
       z.object({
         currentPassword: z.string().min(1).max(128),

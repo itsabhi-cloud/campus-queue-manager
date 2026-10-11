@@ -1,0 +1,32 @@
+# Render Blueprint for QueueSense: one Docker web service (API + SSE + built client).
+# Database: an external MySQL 8 (e.g. Aiven). See docs/deployment.md for the values.
+services:
+  - type: web
+    name: queuesense
+    runtime: docker
+    plan: free
+    # Can't be changed after creation; pick the region closest to your database.
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    # Free instances have no pre-deploy command, so migrations run before the server on every start.
+    # They are idempotent; `exec` lets the server receive SIGTERM directly for a graceful shutdown.
+    dockerCommand: sh -c "node dist/migrate.js && exec node dist/index.js"
+    healthCheckPath: /api/health
+    # Names only. Render asks for each value when the Blueprint is first created.
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        sync: false
+      - key: DB_SSL_CA
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+      - key: TRUST_PROXY
+        sync: false
+      - key: CAMPUS_TIMEZONE
+        sync: false
+      - key: DEMO_MODE
+        sync: false

@@ -12,7 +12,10 @@ import {
 } from "../../server/auth/tokens";
 import { csvCell, parseCsv, toCsv } from "../../server/lib/csv";
 import { RateLimiter } from "../../server/_core/rateLimit";
+import { scrubForLog } from "../../server/_core/logger";
 import {
+  databaseSsl,
+  databaseUrlProblem,
   productionOriginProblem,
   productionSecretProblem,
 } from "../../server/_core/env";
@@ -118,8 +121,80 @@ describe("production secret", () => {
     expect(productionSecretProblem("a".repeat(40))).toMatch(/placeholder/);
     expect(
       productionSecretProblem(
+        "ci-only-secret-not-used-anywhere-else-0123456789"
+      )
+    ).toMatch(/placeholder/);
+    expect(
+      productionSecretProblem(
         "9f2c1e7ab04d58e3c6a1f09b7d2e4c8a5b3f6e1d0c9a8b7e"
       )
     ).toBeNull();
+  });
+});
+
+describe("database TLS", () => {
+  const pem =
+    "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----";
+  it("is off by default", () => {
+    expect(databaseSsl(undefined, undefined)).toEqual({
+      ssl: undefined,
+      problem: null,
+    });
+  });
+  it("verifies against public CAs when no CA is given", () => {
+    expect(databaseSsl("true", undefined).ssl).toEqual({
+      ca: undefined,
+      rejectUnauthorized: true,
+      verifyIdentity: true,
+    });
+  });
+  it("accepts a PEM CA, including one written on one line with \\n", () => {
+    expect(databaseSsl("true", pem).ssl?.ca).toBe(pem);
+    expect(databaseSsl("true", pem.replace(/\n/g, "\\n")).ssl?.ca).toBe(pem);
+  });
+  it("rejects a CA that is not PEM, or a CA without DB_SSL=true", () => {
+    expect(databaseSsl("true", "ca.pem").problem).toMatch(/PEM/);
+    expect(databaseSsl("false", pem).problem).toMatch(/DB_SSL is not true/);
+  });
+});
+
+describe("log scrubbing", () => {
+  it("drops bound query values from database errors but keeps the driver cause", () => {
+    const driver = Object.assign(
+      new Error("Table 'x.no_such_table' doesn't exist"),
+      {
+        code: "ER_NO_SUCH_TABLE",
+      }
+    );
+    const error = new Error(
+      "Failed query: select * from users where password_hash = ?\nparams: scrypt$16384$8$1$salt$hash",
+      { cause: driver }
+    );
+    const logged = JSON.stringify(scrubForLog({ error }));
+    expect(logged).not.toContain("scrypt$");
+    expect(logged).toContain("params: [redacted]");
+    expect(logged).toContain("where password_hash = ?");
+    expect(logged).toContain("ER_NO_SUCH_TABLE");
+  });
+  it("redacts sensitive keys", () => {
+    expect(scrubForLog({ password: "x", sessionToken: "y", ok: 1 })).toEqual({
+      password: "[redacted]",
+      sessionToken: "[redacted]",
+      ok: 1,
+    });
+  });
+});
+
+describe("database URL", () => {
+  it("refuses TLS parameters the driver would silently ignore", () => {
+    expect(
+      databaseUrlProblem(
+        "mysql://avnadmin:pw@db.aivencloud.com:12345/defaultdb?ssl-mode=REQUIRED"
+      )
+    ).toMatch(/DB_SSL=true/);
+    expect(databaseUrlProblem("mysql://u:p@h:3306/db?sslmode=require")).toMatch(
+      /sslmode/
+    );
+    expect(databaseUrlProblem("mysql://u:p@h:3306/db")).toBeNull();
   });
 });

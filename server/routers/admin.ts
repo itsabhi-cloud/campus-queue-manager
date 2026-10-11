@@ -25,7 +25,10 @@ import {
   upsertService,
   upsertStation,
 } from "../catalogAdmin";
-import { adminProcedure, router } from "../_core/trpc";
+import { adminProcedure, notForDemo, router } from "../_core/trpc";
+
+/** Admin actions a shared demo admin may not take: they lock visitors out or break the demo. */
+const nonDemoAdminProcedure = adminProcedure.use(notForDemo);
 import { db } from "../db/client";
 import { audit } from "../lib/audit";
 import { getSettings, saveSettings, settingsSchema } from "../lib/settings";
@@ -49,7 +52,7 @@ export const adminRouter = router({
     update: adminProcedure
       .input(updateUserInput)
       .mutation(({ ctx, input }) => updateUser(ctx.user, input, ctx.ip)),
-    setStatus: adminProcedure
+    setStatus: nonDemoAdminProcedure
       .input(
         z.object({
           userId: id,
@@ -58,10 +61,10 @@ export const adminRouter = router({
         })
       )
       .mutation(({ ctx, input }) => setUserStatus(ctx.user, input, ctx.ip)),
-    setRole: adminProcedure
+    setRole: nonDemoAdminProcedure
       .input(z.object({ userId: id, role: z.enum(["STAFF", "ADMIN"]) }))
       .mutation(({ ctx, input }) => setUserRole(ctx.user, input, ctx.ip)),
-    issueCode: adminProcedure
+    issueCode: nonDemoAdminProcedure
       .input(z.object({ userId: id }))
       .mutation(({ ctx, input }) =>
         issueAccessCode(ctx.user, input.userId, ctx.ip)
@@ -69,7 +72,7 @@ export const adminRouter = router({
     previewImport: adminProcedure
       .input(z.object({ csv: csvText }))
       .mutation(({ input }) => previewStudentImport(input.csv)),
-    commitImport: adminProcedure
+    commitImport: nonDemoAdminProcedure
       .input(z.object({ csv: csvText }))
       .mutation(({ ctx, input }) =>
         commitStudentImport(ctx.user, input.csv, ctx.ip)
@@ -110,7 +113,7 @@ export const adminRouter = router({
 
   settings: router({
     get: adminProcedure.query(() => getSettings()),
-    update: adminProcedure
+    update: nonDemoAdminProcedure
       .input(settingsSchema)
       .mutation(async ({ ctx, input }) => {
         const before = await getSettings();
