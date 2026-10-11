@@ -5,8 +5,7 @@ interest, without a course mentor.
 
 <!--
   Every number here comes from the code, the test suite, git history or docs/testing.md.
-  "This branch" means the code merged to main plus abhi/frontend-ux. Work on puneet/backend-deploy
-  is described as such until it is merged; update those lines (and re-run Lighthouse) after merging.
+  Both branches (abhi/frontend-ux and puneet/backend-deploy) are merged to main.
 -->
 
 ## Abstract
@@ -19,7 +18,7 @@ calling, serving, priority with a reason, pausing, and merging a failed counter'
 without anyone losing their place. Administrators manage services, people and settings with an
 audit trail. An optional camera station uses TensorFlow.js in the browser to estimate crowding and
 sends only a head count. The app is written in TypeScript (React 19, Express, tRPC, MySQL 8) and is
-checked by 115 automated tests against a real MySQL database, an axe-core accessibility audit and a
+checked by 131 automated tests against a real MySQL database, an axe-core accessibility audit and a
 Lighthouse audit (Accessibility, Best Practices and SEO 100 on every page tested).
 
 ## 1. Introduction and motivation
@@ -169,17 +168,17 @@ the app in the browser ourselves before merging anything.
 
 | Kind | What | Result |
 | --- | --- | --- |
-| Automated tests | 115 unit and integration tests in 14 files, run against a real MySQL test database: authentication, a permissions matrix of 26 privileged operations, state transitions, concurrency (25 simultaneous joins, racing duplicate joins, simultaneous "call next"), priority, merge and restore, traffic, notification isolation, import validation, SSE delivery, security headers and the full demo flow over HTTP and SSE | 115/115 pass; also run in CI on pull requests and pushes to `main` |
+| Automated tests | 131 unit and integration tests in 15 files, run against a real MySQL test database: authentication, a permissions matrix of 26 privileged operations, state transitions, concurrency (25 simultaneous joins, racing duplicate joins, simultaneous "call next"), priority, merge and restore, traffic, notification isolation, import validation, SSE delivery, security headers, database TLS settings, log redaction, response compression, demo mode and the full demo flow over HTTP and SSE | 131/131 pass; also run in CI on pull requests and pushes to `main` |
 | Concurrency results | 25 parallel joins; 6 parallel joins by one student; 2 simultaneous "call next" on one desk | Tokens C001–C025 with no gaps or duplicates; exactly 1 token; exactly 1 call |
 | Accessibility | axe-core (WCAG 2.1 A/AA and best practices) on 21 screens and dialogs; Lighthouse Accessibility | 0 violations after fixes; 100 on every page tested |
-| Lighthouse (11 Oct, local production build, median of 3 runs) | Landing, sign-in, 404, student home, service page | Accessibility, Best Practices, SEO: 100. Performance: desktop 98–99, mobile 76–83 |
+| Lighthouse (11 Oct, local production build, median of 3 runs) | Landing, sign-in, 404, student home, service page | Accessibility, Best Practices, SEO: 100. Performance: desktop 98–99, mobile 93–98 |
 | Responsive | Every student, staff and admin screen at 360 × 780 with touch emulation; earlier checks at 390–1440 px | No horizontal scrolling; 44 px touch targets on touch screens |
 | End-to-end | Scripted 12-step demo (`pnpm demo:smoke`) and a manual session with all three roles at once | All steps pass |
 
-Mobile Lighthouse Performance was held back by uncompressed responses. Response compression has
-since been added on `puneet/backend-deploy`; in an experiment with a temporary gzip proxy the same
-build scored 93–98 on mobile, but the recorded scores above stay until Lighthouse is re-run after the
-merge. Full matrix: [testing.md](testing.md).
+The first audit measured mobile Performance at 76–83, held back by uncompressed responses. After the
+server began compressing responses (brotli or gzip, never the realtime stream), the mobile profile
+was re-measured the same way (Lighthouse 12.2.1, median of three runs): 93–98. Desktop figures are
+from the first audit. Full matrix: [testing.md](testing.md).
 
 ## 9. Deployment
 
@@ -189,13 +188,12 @@ The app ships as one Docker image (`node:22-alpine`) that serves the API, the SS
 built frontend from one process, with a health check at `/api/health`. Production settings are
 validated at startup ([deployment.md](deployment.md)).
 
-The free hosting setup is on `puneet/backend-deploy` and not merged yet: a Render Blueprint
+The free hosting setup is a Render Blueprint
 (`render.yaml`) runs the Docker image as a free web service and applies migrations before each
 start, because the free plan has no pre-deploy step or shell. The database is a free managed MySQL
 on Aiven over TLS, and an UptimeRobot check on `/api/health` every 5 minutes keeps the service
-awake. The same branch adds the demo-mode backend (`auth.demo`, `auth.demoLogin`, shared demo
-accounts, daily reset); the landing page's "Try as Student / Staff / Admin" panel is already built
-and switches on once that is merged and its placeholder hook is swapped for the real call.
+awake. Demo mode (`auth.demo`, `auth.demoLogin`, shared demo accounts, daily reset) powers the
+landing page's "Try as Student / Staff / Admin" panel, which signs visitors in to a demo account.
 
 ## 10. Team and contributions
 
@@ -231,8 +229,7 @@ From the git history up to 11 October 2026 (`main`, `abhi/frontend-ux` and `pune
 **Limitations.** Wait times are heuristics, not appointments. The API runs as a single instance
 (in-memory realtime and rate limits). There is no email delivery, self-service password reset or
 administrator MFA. Not yet tested: live webcam detection, browser notifications with permission
-granted and a screen-reader session. Mobile Lighthouse Performance needs a
-re-run once compression is merged.
+granted and a screen-reader session.
 
 **Future scope.** Email or SMS notifications and self-service
 password reset; Redis-backed realtime and rate limits for several instances; single sign-on with

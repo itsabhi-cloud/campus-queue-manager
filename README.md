@@ -247,12 +247,14 @@ time of the current service + staff delay`. Details and assumptions: [docs/queue
 
 ## Testing
 
-`pnpm test` runs 115 tests in 14 files: pure logic (state machine, ordering/merge strategies,
+`pnpm test` runs 131 tests in 15 files: pure logic (state machine, ordering/merge strategies,
 estimation, passwords, tokens, CSV, rate limiting, camera ROI/smoothing and error messages, browser
 notification gating) and integration tests against a real MySQL database (auth, password reset,
 RBAC, object-level authorization, 25 concurrent joins, duplicate-join races, priority, merges,
-traffic, notifications, imports, SSE delivery over HTTP, security headers, and the full demo flow
-over HTTP and SSE with separate student, staff and admin sessions).
+traffic, notifications, imports, SSE delivery over HTTP, security headers, response compression
+(and that the SSE stream is never compressed), log redaction, demo mode sign-in and restrictions,
+and the full demo flow over HTTP and SSE with separate student, staff and admin sessions).
+`pnpm lint` runs ESLint (typescript-eslint, react-hooks); CI runs type check, lint, tests and build.
 
 `pnpm verify:model` loads the COCO-SSD model used by the camera station in Node and runs inference
 on synthetic frames (a load-and-run check; it does not measure detection accuracy). Evidence for

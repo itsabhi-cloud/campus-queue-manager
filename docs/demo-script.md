@@ -27,7 +27,7 @@
 | 3:25 | **Built for phones.** Show the student app at 360 px: bottom tab bar, the ticket fits on screen, *Alerts* lists every change. Mention Lighthouse Accessibility 100 and the reduced-motion support. | A |
 | 3:55 | **Privacy-preserving camera** (only if a webcam is available; otherwise one sentence). Camera station counts people in the browser and sends only a number; it can raise traffic, never identifies anyone. | B |
 | 4:20 | **It's your turn.** Staff finish the token in front (**Start serving**, **Complete**) and press **Call next**. The ticket turns signal yellow: "Go to … now". | B → A |
-| 4:40 | **Close.** Server is the source of truth (transactions, row locks), realtime over Server-Sent Events, role checks on every request, 115 automated tests. Questions. | Any |
+| 4:40 | **Close.** Server is the source of truth (transactions, row locks), realtime over Server-Sent Events, role checks on every request, 131 automated tests. Questions. | Any |
 
 If time is short, drop the camera step first, then the merge.
 
@@ -44,7 +44,7 @@ My part was the frontend, UX and presentation. These are my commits on `abhi/fro
 | Admin overview polish | Chart legend text made readable (it used the pale bar colour); attention panel no longer stretches | `36c942c` |
 | Brand assets | Favicon in the app's ticket mark, PNG and Apple touch icons, web manifest, 1200 × 630 Open Graph image, `robots.txt` | `42c89c2` |
 | Mobile at 360 px | Notification tabs fit on one line; "Mark read" and history status chips move under the text on narrow screens; 44 px touch targets for text buttons, tabs, back links and the profile chip | `efd3d77` |
-| Demo mode | "Try as Student / Staff / Admin" panel on the landing page, shown only when the server reports demo mode; uses a clearly marked placeholder until the backend endpoints merge | `50994ca` |
+| Demo mode | "Try as Student / Staff / Admin" panel on the landing page, shown only when the server reports demo mode; connected to `auth.demo` / `auth.demoLogin` in `7c2bde7` | `50994ca`, `7c2bde7` |
 | Layout stability | Student home no longer jumps while loading (Cumulative Layout Shift 0.406 → 0–0.012) | `095dd68` |
 | Accessibility | Profile chip's accessible name now matches its visible text | `ea8d75b` |
 | Performance | Signed-in shell loads lazily, so public pages download 38 kB less JavaScript (minified; 12 kB gzipped) | `33de0fc` |
@@ -56,6 +56,6 @@ Talking points for my part (about 30 seconds, fits in the 3:25 slot):
 
 - Every student screen was checked at 360 px with touch emulation, with no horizontal scrolling.
 - Lighthouse: Accessibility, Best Practices and SEO 100 on every page tested; desktop Performance
-  98–99. Mobile Performance is 76–83 because the server doesn't compress responses yet; with
-  compression the same build measured 93–98.
+  98–99. Mobile Performance went from 76–83 to 93–98 once the server compressed its responses
+  (re-measured the same way, median of three runs).
 - Fixed a large layout shift on the student home page and made the public pages lighter.
