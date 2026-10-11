@@ -1,419 +1,272 @@
-# QueueSense: A Realtime Campus Queue Management Platform
+# QueueSense: Project Report
+
+**Built by Puneet Sreevatsal Jagadam and Abhi Shiktha** as an independent project, out of personal
+interest, without a course mentor.
 
 <!--
-  Course project report in the SRMIST chapter format. Text in [square brackets] is a placeholder
-  to fill in before submission. Every number in this report comes from the code, the test suite or
-  the checks recorded in testing.md; update them together if the app changes.
+  Every number here comes from the code, the test suite, git history or docs/testing.md.
+  "This branch" means the code merged to main plus abhi/frontend-ux. Work on puneet/backend-deploy
+  is described as such until it is merged; update those lines (and re-run Lighthouse) after merging.
 -->
-
-**A course project report submitted for [Course code] Full Stack Web Development**
-
-**Submitted by**
-
-[Student name 1] ([Register number])
-[Student name 2] ([Register number])
-
-**Under the guidance of**
-
-[Guide name], [Designation], [Department]
-
-In partial fulfilment of the requirements for the degree of **Bachelor of Technology** in
-**[Computer Science and Engineering / specialisation]**
-
-[Department], School of Computing, College of Engineering and Technology,
-SRM Institute of Science and Technology, Kattankulathur, Chengalpattu District
-
-[Month Year]
-
----
-
-## Bonafide certificate
-
-Certified that this project report titled **"QueueSense: A Realtime Campus Queue Management
-Platform"** is the bonafide work of **[Student name 1] ([Register number])** and **[Student name 2]
-([Register number])**, who carried out the project work under my supervision.
-
-| | |
-| --- | --- |
-| [Guide name], [Designation], [Department] | [Head of Department name], Professor and Head, [Department] |
-| Signature: | Signature: |
-
-## Acknowledgement
-
-[Write your acknowledgement here: guide, head of department, course coordinator, institution and
-anyone who helped test the system.]
 
 ## Abstract
 
-QueueSense is a realtime web platform that lets students reserve a place in campus service queues
+QueueSense is a realtime web app that lets students hold a place in campus service queues
 (administration desks, print centre, cafeteria and lifts) and leave the physical line. The server
 issues concurrency-safe tokens, computes each student's position and an explainable wait estimate,
-and pushes changes to browsers over Server-Sent Events. Staff operate counters, including priority,
-pausing and merging a failed counter's queue into another without losing anyone's place.
-Administrators manage services, people and policy with a full audit trail. Optional browser-side
-computer vision (TensorFlow.js, COCO-SSD) estimates crowding near a counter while storing only
-aggregate counts. The interface is phone-first for students and was checked at 360 px wide. The
-system is implemented in TypeScript (React 19, Express, tRPC, MySQL 8) and verified by 115
-automated tests against a real database, an automated accessibility audit, a Lighthouse audit
-(Accessibility, Best Practices and SEO 100 on every page tested) and an end-to-end demonstration
-script.
+and pushes every change to open browsers over Server-Sent Events. Staff run counters from a console:
+calling, serving, priority with a reason, pausing, and merging a failed counter's line into another
+without anyone losing their place. Administrators manage services, people and settings with an
+audit trail. An optional camera station uses TensorFlow.js in the browser to estimate crowding and
+sends only a head count. The app is written in TypeScript (React 19, Express, tRPC, MySQL 8) and is
+checked by 115 automated tests against a real MySQL database, an axe-core accessibility audit and a
+Lighthouse audit (Accessibility, Best Practices and SEO 100 on every page tested).
 
-**Keywords:** queue management, realtime web application, Server-Sent Events, tRPC, MySQL,
-computer vision, accessibility.
+## 1. Introduction and motivation
 
-## Table of contents
+We are two students who got tired of campus queues: waiting at the fee counter without knowing if
+it would take five minutes or forty, losing our place if we stepped away, and printing queues that
+fell apart when a printer jammed. We wanted to build something real and useful about it, not a
+mock-up, and to use the project to learn the parts of full-stack development that tutorials tend to
+skip:
 
-1. [Introduction](#1-introduction)
-2. [Literature survey and existing systems](#2-literature-survey-and-existing-systems)
-3. [System requirements and analysis](#3-system-requirements-and-analysis)
-4. [System design](#4-system-design)
-5. [Implementation](#5-implementation)
-6. [Testing and results](#6-testing-and-results)
-7. [Conclusion and future enhancements](#7-conclusion-and-future-enhancements)
-8. [References](#references)
-9. [Appendix A: screenshots](#appendix-a-screenshots)
-10. [Appendix B: repository guide](#appendix-b-repository-guide)
+- **Concurrency:** two people joining or two staff clicking "call next" at the same instant.
+- **Realtime:** updating every open screen the moment the queue changes.
+- **Security:** sessions, roles and checking every request on the server.
+- **Accessibility:** making it usable on a small phone, with a screen reader and without colour.
+- **Deployment:** running it on the public internet, not just on our laptops.
 
-### List of tables
+## 2. Problem statement and objectives
 
-Table 3.1 Software requirements · Table 4.1 Modules · Table 4.2 Database tables · Table 6.1 Test
-summary · Table 6.2 Lighthouse scores
+**Problem.** Students wait in physical lines with no idea how long the wait is and can't leave
+without losing their place. Staff can only see the people in front of them and have no way to tell
+waiting students about delays or a counter going down.
 
-### List of figures
-
-Figure 4.1 System architecture · Figures A.1–A.8 Screenshots (Appendix A)
-
-### Abbreviations
-
-| Abbreviation | Meaning |
-| --- | --- |
-| API | Application Programming Interface |
-| CLS | Cumulative Layout Shift |
-| CSP | Content Security Policy |
-| CSRF | Cross-Site Request Forgery |
-| ORM | Object-Relational Mapper |
-| RBAC | Role-Based Access Control |
-| ROI | Region of Interest |
-| SPA | Single-Page Application |
-| SSE | Server-Sent Events |
-| tRPC | TypeScript Remote Procedure Call |
-| WCAG | Web Content Accessibility Guidelines |
-
----
-
-## 1. Introduction
-
-### 1.1 Overview
-
-Campus services concentrate demand at predictable times: fee deadlines, printing before
-submissions, lunch, and lifts between lectures. QueueSense replaces standing in line with a digital
-token. A student takes a token on their phone, leaves, watches their live position and estimated
-wait, and is notified when their turn approaches. Staff run each counter from a console, and
-administrators configure services, people and policy centrally.
-
-### 1.2 Problem statement
-
-Students wait in physical lines with no idea how long the wait is, and cannot leave without losing
-their place. Staff have no view of the line beyond what they can see, and no way to tell waiting
-students about delays or a counter going down.
-
-### 1.3 Objectives
+**Objectives.**
 
 1. Hold a student's place digitally so they can leave the line.
 2. Show an authoritative live position and an explainable, honest wait estimate.
-3. Notify students when their turn approaches and when conditions change.
-4. Give staff fast, safe operational controls (call, serve, skip, priority, pause, merge).
-5. Give administrators central configuration, people management, analytics and auditability.
-6. Estimate physical congestion with computer vision without identifying individuals.
-7. Make the student experience usable on a small phone (360 px) and accessible (WCAG 2.1 AA).
+3. Notify students when their turn approaches and whenever something changes.
+4. Give staff fast, safe controls: call, serve, skip, priority, pause, merge.
+5. Give administrators central configuration, people management, analytics and an audit trail.
+6. Estimate physical crowding with computer vision without identifying anyone.
+7. Work well on a 360 px phone and meet WCAG 2.1 AA.
 
-### 1.4 Scope
+**Scope.** Four services (Administration, Printing, Cafeteria, Elevator/Lift) run on one
+configurable queue engine with no per-service code paths. QueueSense manages lines only: waits are
+estimates, not appointments; the cafeteria queue holds a place but doesn't take orders or payment;
+the lift queue is a virtual boarding queue and doesn't control lift hardware.
 
-QueueSense covers four campus services (Administration, Printing, Cafeteria and Elevator/Lift)
-with one configurable queue engine and no per-service code paths. It manages lines only: wait times
-are estimates, not appointments; the cafeteria queue holds a place but does not take orders or
-payments; the lift queue is a virtual boarding queue and does not control lift hardware; camera
-stations count people and never identify them.
+## 3. Features by role
 
-### 1.5 Organisation of the report
+| Role | Features |
+| --- | --- |
+| Student | Join by counter or "shortest line"; live ticket with token number, position, people ahead, estimated wait and countdown; "what changed" messages; cancel; history; notifications with per-type preferences and optional browser alerts; profile |
+| Staff | Counter console with now-serving board; call next (or next lift batch), start serving, complete, skip no-show, cancel with reason; pause, take offline, merge into another counter; adjust traffic and add a delay; priority with a required reason; camera station |
+| Admin | Live overview (stats, needs attention, system health, recent operations, charts); live queues; people management with activation codes; CSV bulk import with preview; services, queue groups, counters, staff assignments and camera stations; audit log; settings |
+| Visitor | Landing page and sign-in. A one-click demo sign-in for each role is being added (Section 9) |
 
-Chapter 2 reviews existing approaches. Chapter 3 lists requirements. Chapter 4 describes the
-architecture, modules and database. Chapter 5 covers implementation, including the interface.
-Chapter 6 presents testing and results. Chapter 7 concludes and lists future work.
+Screenshots of each are in the [Appendix](#appendix-screenshots).
 
-## 2. Literature survey and existing systems
+## 4. Technology stack
 
-| Approach | Strength | Gap QueueSense addresses |
+| Layer | Choice | Why we chose it |
 | --- | --- | --- |
-| Physical lines | No equipment | No information, no mobility, unfair when counters change |
-| Paper or kiosk tickets | Free people from standing | Still require watching a display nearby; give no estimate |
-| Generic appointment systems | Predictable slots | Fixed slots don't fit walk-in services with variable service times |
-| Single-counter token apps | Simple digital tokens | Usually no counter merge, priority with reasons, traffic-aware estimates or audit trail |
+| Language | TypeScript 5.9 everywhere | One language and shared types from database to UI |
+| Frontend | React 19, Vite 7, wouter, TanStack Query 5 | React for components; Vite for fast builds and code splitting; wouter is a very small router; TanStack Query caches server data and makes "refetch when told something changed" simple |
+| API | tRPC 11 on Express 4, zod validation | End-to-end typed calls without writing or generating an API client; zod validates every input on the server |
+| Realtime | Server-Sent Events | Updates only flow server → browser, so SSE is enough: plain HTTP, built-in browser reconnection, no extra library |
+| Database | MySQL 8 with Drizzle ORM | Transactions and row locks for the queue, generated columns and unique indexes to enforce rules, CHECK constraints; Drizzle gives typed queries and SQL migrations |
+| Auth | Own sessions, scrypt hashing (Node's `crypto`) | Server-side sessions can be revoked; scrypt needs no native add-ons |
+| Computer vision | TensorFlow.js + COCO-SSD in the browser | Frames never leave the device, only a count is sent |
+| UI | Plain CSS design tokens, Radix Dialog, Recharts, sonner, lucide icons | Full control over a small custom design system; Radix for an accessible dialog; Recharts for admin charts |
+| Testing | Vitest against a real MySQL test database, axe-core, Lighthouse | Concurrency bugs only show up against a real database |
+| Delivery | Docker (`node:22-alpine`), GitHub Actions CI | Same image everywhere; CI runs `pnpm check`, `pnpm test` and `pnpm build` on pull requests and pushes to `main` |
 
-Design references used for the interface were the visual conventions of printed queue tickets,
-"now serving" boards and campus signage, and the WCAG 2.1 guidelines for contrast, target size and
-labelling.
+## 5. System architecture
 
-## 3. System requirements and analysis
+```mermaid
+flowchart TB
+  student["Student app<br/>(phone)"]
+  staff["Staff console"]
+  admin["Admin console"]
+  camera["Camera station<br/>sends a head count only"]
 
-### 3.1 Functional requirements
+  subgraph node["One Node.js process (Express)"]
+    api["tRPC API<br/>zod validation · role checks"]
+    engine["Queue engine<br/>row-locked transactions"]
+    broker["Realtime broker<br/>SSE at /api/realtime"]
+  end
 
-- **Students:** sign in, activate an account with a one-time code, browse services, join a queue by
-  counter or "shortest line", see live position, people ahead and estimated wait, cancel, view
-  history, receive notifications and set notification preferences.
-- **Staff:** call next (or the next lift batch), start serving, complete, skip a no-show, cancel
-  with a reason, pause or take a counter offline, merge queues, adjust traffic or add a delay, and
-  give priority with a reason.
-- **Administrators:** live overview and analytics, live queues, people management, CSV bulk import
-  with preview, catalogue editor, staff assignments, camera stations, audit log and settings.
+  db[("MySQL 8<br/>Drizzle ORM")]
 
-### 3.2 Non-functional requirements
-
-- **Consistency:** the server is the single source of truth; concurrent actions must not create
-  duplicate or missing tokens.
-- **Realtime:** changes reach open pages without a refresh, and pages resynchronise after a
-  reconnect.
-- **Security:** server-side authorisation on every call, protection against CSRF, safe session
-  storage.
-- **Privacy:** camera data is aggregate counts only.
-- **Usability and accessibility:** WCAG 2.1 AA, phone-first student screens down to 360 px, 44 px
-  touch targets on touch screens, reduced-motion support.
-
-### 3.3 Software requirements
-
-*Table 3.1 Software requirements*
-
-| Component | Version |
-| --- | --- |
-| Node.js | 22 (the Docker image uses `node:22-alpine`) |
-| Package manager | pnpm 10 |
-| Database | MySQL 8.0.16 or later (CHECK constraints, generated columns) |
-| Browser | A current Chrome, Edge, Firefox or Safari; the camera station needs camera permission |
-
-### 3.4 Hardware requirements
-
-Any machine that runs Node.js and MySQL for development. The camera station needs a webcam on the
-staff device. Students only need a phone browser.
-
-## 4. System design
-
-### 4.1 Architecture
-
-*Figure 4.1 System architecture*
-
-```
-React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queue engine ──▶ MySQL 8 (Drizzle)
-      ▲                                   │                    (transactions,
-      └──────── SSE /api/realtime ◀── in-process broker ◀──── post-commit effects)
+  student --> api
+  staff --> api
+  admin --> api
+  camera --> api
+  student -.- broker
+  staff -.- broker
+  admin -.- broker
+  camera -.- broker
+  api --> engine
+  engine -- "after commit" --> broker
+  engine --> db
 ```
 
-The backend is the single source of truth. Clients request actions; the server validates,
-authorises and executes them in database transactions, records events, creates notifications and
-then broadcasts identifier-only realtime events so every client refetches the authoritative state.
-Details: [architecture.md](architecture.md).
+Solid arrows are requests. Dashed lines are each browser's Server-Sent Events stream: the browser
+opens it once, and the broker pushes events down it. The server is the source of truth:
+browsers send intentions ("join this queue", "call next"), the engine runs them in a transaction,
+and only after the commit does the broker tell open browsers *that* something changed. Events carry
+identifiers only; each browser then refetches the data it is allowed to see. More detail:
+[architecture.md](architecture.md).
 
-### 4.2 Modules
+## 6. Key modules
 
-*Table 4.1 Modules*
+**Queue engine** ([queue-engine.md](queue-engine.md)). Every action runs in a MySQL transaction with
+row locks and a guarded state machine: waiting → called → serving → completed, with skipped and
+cancelled exits. Token numbers are per counter per campus day (for example `F001`). The estimate is
+`cyclesAhead × cycleSeconds + inProgress + staffDelay`, where the service time blends the configured
+average with the median of recent completions, traffic multiplies it (×1.0, ×1.25, ×1.5) and a lift
+serves a batch per trip. Merging a counter weaves the two lines (A1, B1, A2, B2) without deleting
+any entry and remembers where each token came from.
 
-| Module | Responsibility |
+**Realtime** ([realtime.md](realtime.md)). An in-process broker publishes after each commit; the SSE
+endpoint streams identifier-only events to signed-in browsers. Clients coalesce bursts, refetch,
+reconnect with backoff and resynchronise everything after a reconnect. Countdowns are anchored to
+the server clock so every screen shows the same number.
+
+**Security** ([security.md](security.md)). scrypt password hashes; random session tokens stored only
+as HMAC digests; HttpOnly, SameSite=Lax cookies (Secure in production); a CSRF origin check on
+writes; role checks plus object-level checks (staff only touch assigned counters, students only see
+their own tokens); rate limits and lockout; audit log; CSP and HSTS in production; the server
+refuses to start in production with an insecure origin or a placeholder secret.
+
+**Computer vision** ([computer-vision.md](computer-vision.md)). COCO-SSD runs in the browser,
+keeps only "person" detections whose centre is inside a configured area, smooths the count over the
+last frames and sends it every 5 seconds. The count can raise a queue's traffic level but never
+lower it, and is never added to the digital queue (people standing there may already hold tokens).
+Stale counts are ignored.
+
+**Database** ([database.md](database.md)). 18 application tables. The database itself enforces one
+active token per student per queue (a stored generated column plus a unique index), a unique token
+sequence per counter per day and CHECK constraints on configuration. A clean migration creates 31
+foreign keys, 11 unique constraints and 6 CHECK constraints.
+
+## 7. Development journey
+
+| When | What happened |
 | --- | --- |
-| Accounts | Password sign-in, sessions, activation/reset codes, profiles, CSV import |
-| RBAC | Role middleware plus object-level checks (staff counter assignments, token ownership) |
-| Queue engine | Joining, transitions, priority, traffic, pause/offline, merge, estimates, notifications |
-| Realtime | In-process broker and SSE stream; client invalidation, backoff and resync |
-| Student app | Services, join flow, token ticket with live position and countdown, history, notifications |
-| Staff console | Now-serving board, call/serve/complete/skip/cancel, traffic, priority, merge |
-| Admin console | Overview and analytics, people, catalogue, assignments, audit log, settings |
-| Camera station | In-browser person detection, ROI, smoothing, aggregate reporting, staleness |
+| 27 Sep | **Prototype (Abhi).** Abhi created the repository and pushed the first QueueSense app, started from a Manus web-app template: five screens and a polished visual style, but the queue lived in the browser's `localStorage`, the API was public and there was no real realtime server ([starting-point audit](history/initial-audit.md)). |
+| 27–28 Sep | **Full-stack rebuild (Puneet).** Puneet kept the stack and the visual ideas and rebuilt the rest: authentication and roles, the database schema, the transactional queue engine, SSE realtime, the student, staff and admin apps on real APIs, the "Wayfinding" design system, tests, production guards and a verification report. |
+| 11 Oct | **Public repository.** Puneet added CI, a licence and deployment preparation; Abhi merged the rebuild into `main` through pull request #1. |
+| 11 Oct | **Parallel polish on branches.** Abhi worked on `abhi/frontend-ux` (UI polish, 360 px mobile pass, Lighthouse audit, demo-mode UI, README visuals, docs). Puneet worked on `puneet/backend-deploy` (managed-MySQL TLS, ESLint, security review fixes, response compression, demo mode backend, Render deployment). The demo-mode API (`auth.demo`, `auth.demoLogin`) was agreed between the two branches, so the UI and the backend fit together. |
 
-### 4.3 Database design
+We used AI coding assistants as tools throughout, as many developers now do. They wrote drafts of
+code and documentation; we decided what to build, reviewed the changes, ran the tests and checked
+the app in the browser ourselves before merging anything.
 
-*Table 4.2 Database tables*
-
-The schema has 18 application tables ([database.md](database.md)): `users`, `student_profiles`,
-`staff_profiles`, `user_avatars`, `sessions`, `auth_codes`, `services`, `queue_groups`, `counters`,
-`staff_counter_assignments`, `queue_entries`, `queue_events`, `notifications`,
-`notification_preferences`, `camera_stations`, `camera_metrics`, `audit_logs` and
-`system_settings`.
-
-Key invariants are enforced by the database: one active token per student per queue (a stored
-generated column plus a unique index), a unique token sequence per counter per day, and CHECK
-constraints on configuration. A clean migration creates 31 foreign keys, 11 unique constraints and
-6 CHECK constraints.
-
-### 4.4 Interface design
-
-The visual language ("Wayfinding", [design-system.md](design-system.md)) comes from printed queue
-tickets and "now serving" boards. The token ticket is the one bold element on a student's screen;
-signal yellow is reserved for "it's your turn"; status is never shown by colour alone (chips carry
-an icon and a word). Type uses Atkinson Hyperlegible for text and Barlow Condensed with tabular
-figures for tokens and countdowns. Every text colour pairing meets WCAG AA contrast.
-
-Students get a bottom tab bar on phones; staff and admins get a sidebar on desktop and an accessible
-drawer on smaller screens. Data views show a loading placeholder, an empty state where a list can
-be empty, and an error state with a retry button.
-
-## 5. Implementation
-
-### 5.1 Technologies
-
-TypeScript throughout; React 19, Vite 7, wouter, TanStack Query and tRPC 11 on the client; Express
-4, tRPC 11, Drizzle ORM and mysql2 on the server; zod for validation; Server-Sent Events for
-realtime; TensorFlow.js with COCO-SSD for the camera station; Recharts for admin charts; Vitest and
-axe-core for testing.
-
-### 5.2 Queue engine
-
-Every queue action runs in a transaction with row locks and a guarded state machine (waiting →
-called → serving → completed, plus skipped and cancelled). Token numbers are generated per counter
-per campus day (for example `F001`). Wait estimates combine the people ahead, the service time
-(the configured average blended with recent completions), the traffic level and any staff delay;
-when an estimate changes noticeably, the student is told why.
-Merging a counter into another weaves the two lines together (A1, B1, A2, B2) without deleting
-entries and keeps where each token came from. See [queue-engine.md](queue-engine.md).
-
-### 5.3 Realtime communication
-
-Server-Sent Events carry identifiers only; clients refetch authoritative data, coalesce bursts, and
-resynchronise everything after reconnecting. See [realtime.md](realtime.md).
-
-### 5.4 Security
-
-scrypt password hashing; random session tokens stored as HMAC digests; HTTP-only, SameSite=Lax,
-Secure cookies; CSRF origin checks; server-side RBAC with object-level authorisation; input
-validation; rate limiting; audit logging; CSP and HSTS in production; production refuses insecure
-origins and placeholder secrets. Details in [security.md](security.md).
-
-### 5.5 Computer vision
-
-Frames are processed in the browser; only a smoothed people count is sent every 5 seconds. Counts
-map to a congestion level that can raise, but never lower, a queue's traffic level, and are never
-added to the digital queue (which would double-count token holders standing nearby). Stale data is
-ignored. See [computer-vision.md](computer-vision.md).
-
-### 5.6 Frontend performance and polish
-
-- Role areas are separate code chunks; TensorFlow.js loads only when the camera station opens, and
-  the signed-in shell loads only with the first protected page, so the landing and sign-in pages
-  download less (entry chunk 263.6 kB, 82.2 kB gzipped).
-- The student home shows one placeholder until its data arrives, so content does not jump while
-  loading (Cumulative Layout Shift 0 to 0.012).
-- Page changes fade in briefly; with "reduce motion" turned on, animations are cut to effectively
-  zero.
-- A favicon set, web manifest, Open Graph preview image, `robots.txt` and a dedicated 404 page.
-- A demo-mode panel ("Try as Student / Staff / Admin") on the landing page that appears only when
-  the server reports demo mode. [Update this line once the backend endpoints are merged: at the
-  time of writing the client reads a placeholder that keeps the panel hidden.]
-
-## 6. Testing and results
-
-### 6.1 Testing approach
-
-*Table 6.1 Test summary*
+## 8. Testing and quality
 
 | Kind | What | Result |
 | --- | --- | --- |
-| Automated (Vitest) | 115 unit and integration tests in 14 files against a real MySQL test database: authentication, a permissions matrix of 26 privileged operations, state transitions, concurrency, priority, merge and restore, traffic, notifications and recipient isolation, import validation, SSE delivery, security headers, and the full demo flow over HTTP and SSE | 115/115 pass |
-| Accessibility | axe-core (WCAG 2.1 A/AA and best practices) on 21 screens and dialogs | 0 violations after fixes |
-| Lighthouse | Five pages, mobile and desktop profiles, median of three runs on a local production build | See Table 6.2 |
-| Responsive | Every student, staff and admin screen at 360 × 780 with touch emulation; earlier checks at 390, 768, 1024, 1280 and 1440 px | No horizontal overflow |
-| End-to-end | Scripted 12-step demo (`pnpm demo:smoke`) and a manual three-role session | All steps pass |
+| Automated tests | 115 unit and integration tests in 14 files, run against a real MySQL test database: authentication, a permissions matrix of 26 privileged operations, state transitions, concurrency (25 simultaneous joins, racing duplicate joins, simultaneous "call next"), priority, merge and restore, traffic, notification isolation, import validation, SSE delivery, security headers and the full demo flow over HTTP and SSE | 115/115 pass; also run in CI on pull requests and pushes to `main` |
+| Concurrency results | 25 parallel joins; 6 parallel joins by one student; 2 simultaneous "call next" on one desk | Tokens C001–C025 with no gaps or duplicates; exactly 1 token; exactly 1 call |
+| Accessibility | axe-core (WCAG 2.1 A/AA and best practices) on 21 screens and dialogs; Lighthouse Accessibility | 0 violations after fixes; 100 on every page tested |
+| Lighthouse (11 Oct, local production build, median of 3 runs) | Landing, sign-in, 404, student home, service page | Accessibility, Best Practices, SEO: 100. Performance: desktop 98–99, mobile 76–83 |
+| Responsive | Every student, staff and admin screen at 360 × 780 with touch emulation; earlier checks at 390–1440 px | No horizontal scrolling; 44 px touch targets on touch screens |
+| End-to-end | Scripted 12-step demo (`pnpm demo:smoke`) and a manual session with all three roles at once | All steps pass |
 
-The full matrix is in [testing.md](testing.md).
+Mobile Lighthouse Performance was held back by uncompressed responses. Response compression has
+since been added on `puneet/backend-deploy`; in an experiment with a temporary gzip proxy the same
+build scored 93–98 on mobile, but the recorded scores above stay until Lighthouse is re-run after the
+merge. Full matrix: [testing.md](testing.md).
 
-### 6.2 Results
+## 9. Deployment
 
-- All 115 automated tests pass; the production build succeeds; type checking is clean.
-- Concurrency: 25 simultaneous joins produced tokens C001–C025 with no gaps or duplicates; six
-  simultaneous joins by one student produced exactly one token; two simultaneous "call next" clicks
-  on one desk called exactly one token.
-- Merge: a counter's waiting tokens were woven A1, B1, A2, B2 into the remaining counter with no
-  entries lost and provenance kept; reopening the counter left both lines consistent.
-- Estimates: heavy traffic plus a 5-minute delay changed a 4-person-line estimate from 360 s to
-  840 s and notified the student with the reason.
-- Realtime: after a server outage during which data changed, the open page showed the change after
-  reconnecting without a reload.
-- Accessibility: 0 axe-core violations across audited screens; Lighthouse Accessibility 100 on every
-  page tested.
+**Live demo:** [add the URL once deployed]
 
-*Table 6.2 Lighthouse scores (2026-10-11, local production build, median of three runs)*
+The app ships as one Docker image (`node:22-alpine`) that serves the API, the SSE stream and the
+built frontend from one process, with a health check at `/api/health`. Production settings are
+validated at startup ([deployment.md](deployment.md)).
 
-| Page | Mobile Perf | Desktop Perf | Accessibility | Best Practices | SEO |
-| --- | --- | --- | --- | --- | --- |
-| Landing | 83 | 99 | 100 | 100 | 100 |
-| Sign in | 83 | 99 | 100 | 100 | 100 |
-| 404 | 83 | 99 | 100 | 100 | 100 |
-| Student home | 76 | 98 | 100 | 100 | 100 |
-| Service page | 77 | 98 | 100 | 100 | 100 |
+The free hosting setup is on `puneet/backend-deploy` and not merged yet: a Render Blueprint
+(`render.yaml`) runs the Docker image as a free web service and applies migrations before each
+start, because the free plan has no pre-deploy step or shell. The database is a free managed MySQL
+on Aiven over TLS, and an UptimeRobot check on `/api/health` every 5 minutes keeps the service
+awake. The same branch adds the demo-mode backend (`auth.demo`, `auth.demoLogin`, shared demo
+accounts, daily reset); the landing page's "Try as Student / Staff / Admin" panel is already built
+and switches on once that is merged and its placeholder hook is swapped for the real call.
 
-Accessibility, Best Practices and SEO are the same on the mobile and desktop profiles. Mobile
-Performance is below the 90 target because the server does not yet compress responses. With a
-temporary gzip proxy in front of the same build, the mobile scores were 93–98; this is an experiment,
-not a recorded score.
+## 10. Team and contributions
 
-## 7. Conclusion and future enhancements
+From the git history up to 11 October 2026 (`main`, `abhi/frontend-ux` and `puneet/backend-deploy`).
 
-### 7.1 Conclusion
+| | Puneet Sreevatsal Jagadam | Abhi Shiktha |
+| --- | --- | --- |
+| Commits | 21 (12 merged to `main`, 9 on `puneet/backend-deploy`) | 15, plus 2 merges (repository setup and pull request #1) |
+| Prototype | Starting-point audit of the prototype | Created the repository and the first prototype (27 Sep) |
+| Backend | Auth, sessions and roles; schema and migrations; queue engine; SSE realtime; admin APIs; rate limits; production guards; security review fixes; response compression; demo mode backend; managed-MySQL TLS | Proposed the demo-mode API; recorded the missing response compression in the Lighthouse audit |
+| Frontend | Role-based app on real APIs; "Wayfinding" design system; ticket states and change cues | 404 page and transitions; favicon and Open Graph image; 360 px mobile pass; layout-shift fix; accessible profile chip; lighter public pages; demo-mode panel |
+| Quality | Test suite; verification and readiness reports; ESLint; CI | Lighthouse audit; responsive and touch checks; README screenshots and demo GIF |
+| Deployment | Dockerfile, Render Blueprint, Aiven + UptimeRobot guide | Merged the rebuild into `main` (pull request #1) |
+| Docs and presentation | Architecture, database, queue engine, realtime, security, deployment docs; presentation deck | This report, demo script, README visuals section, capture guide |
 
-QueueSense lets students hold a place in campus queues from their phones and see a live,
-explainable position and wait estimate. The server enforces consistency with transactions and
-database constraints, realtime updates reach every open page, and staff can handle real-world
-problems (a counter going down, a priority case, a lunch rush) without anyone losing their place.
-The objectives in Section 1.3 are met, with the limitations below.
+## 11. Challenges, learnings, limitations and future scope
 
-### 7.2 Limitations
+**Challenges and what we learned.**
 
-Estimates are heuristics, not appointments. The API runs as a single instance (in-memory realtime
-and rate limits). There is no email delivery, self-service password reset or administrator MFA.
-Mobile Lighthouse Performance is below 90 until responses are compressed. Live webcam detection,
-browser notifications with permission granted, a screen-reader session and a hosted deployment were
-not tested in the development environment.
+- **Concurrency is a database problem.** Computing "next number = max + 1" in application code, as
+  the prototype did, breaks as soon as two requests overlap. Row locks inside transactions, plus a
+  unique index the database enforces, made the 25-parallel-joins and duplicate-join tests pass
+  every time.
+- **Realtime is simpler when events carry no data.** Sending only "this changed" and letting each
+  browser refetch keeps permissions in one place and makes reconnecting easy: refetch everything.
+- **Streaming and compression don't mix.** A compressor buffers output, which would hold back SSE
+  events, so compression has to skip the realtime stream.
+- **Small UX details show up in measurements.** Lighthouse caught a layout shift of 0.406 on the
+  student home and an accessible-name mismatch that looked fine visually; both were fixed.
+- **Free hosting has constraints.** No pre-deploy step and a service that sleeps after 15 minutes
+  shaped how migrations and health checks run.
 
-### 7.3 Future enhancements
+**Limitations.** Wait times are heuristics, not appointments. The API runs as a single instance
+(in-memory realtime and rate limits). There is no email delivery, self-service password reset or
+administrator MFA. Not yet tested: live webcam detection, browser notifications with permission
+granted, a screen-reader session and a hosted deployment. Mobile Lighthouse Performance needs a
+re-run once compression is merged.
 
-Response compression; email/SMS notifications and self-service password reset; Redis-backed
-realtime and rate limiting for multiple instances; SSO with the institution's identity provider;
-dark mode; historical forecasting of busy periods; kiosk mode for students without phones; QR
-check-in at counters.
+**Future scope.** Merge and verify the hosted demo; email or SMS notifications and self-service
+password reset; Redis-backed realtime and rate limits for several instances; single sign-on with
+the campus identity provider; dark mode; forecasting busy periods from history; a kiosk mode for
+students without phones; QR check-in at counters.
 
-## References
+## 12. Conclusion and links
 
-1. React documentation, react.dev.
-2. tRPC documentation, trpc.io.
-3. Drizzle ORM documentation, orm.drizzle.team.
-4. MySQL 8.0 Reference Manual, dev.mysql.com/doc.
-5. WHATWG HTML Living Standard, "Server-sent events", html.spec.whatwg.org.
-6. TensorFlow.js and the COCO-SSD model, tensorflow.org/js and github.com/tensorflow/tfjs-models.
-7. W3C, Web Content Accessibility Guidelines (WCAG) 2.1, w3.org/TR/WCAG21.
-8. Google, Lighthouse documentation, developer.chrome.com/docs/lighthouse.
-9. OWASP Cheat Sheet Series (session management, CSRF), cheatsheetseries.owasp.org.
+QueueSense does what we set out to do: students hold a place from their phones and see a live,
+explainable position; the database keeps the queue consistent under concurrent use; every open
+screen updates within moments; and staff can deal with a counter going down, a priority case or a
+lunch rush without anyone losing their place. Building it taught us far more about transactions,
+realtime delivery, security and accessibility than a toy app would have.
 
-[Format these in the citation style your department requires.]
+- Repository: <https://github.com/itsabhi-cloud/campus-queue-manager>
+- Live demo: [add the URL once deployed]
+- 5-minute demo script: [demo-script.md](demo-script.md)
+- Design system: [design-system.md](design-system.md) · Test matrix: [testing.md](testing.md)
+- Licence: MIT
 
-## Appendix A: screenshots
+## Appendix: screenshots
 
-The screenshots are in [`docs/images/`](images/README.md), which also says exactly how each one was
-captured.
+Captured on 11 October 2026 from a freshly seeded development database
+([how they were captured](images/README.md)).
 
-| Figure | File |
+**Demo: a live update reaching the student's phone**
+
+![Staff press Call next and adjust traffic; the student's ticket updates live and turns yellow when called](images/demo.gif)
+
+| | |
 | --- | --- |
-| A.1 Landing page | `images/landing.png` |
-| A.2 Student home (phone) | `images/student-home.png` |
-| A.3 Token detail (phone) | `images/student-ticket.png` |
-| A.4 Called ticket (phone) | `images/student-called.png` |
-| A.5 Notifications (phone) | `images/notifications.png` |
-| A.6 Staff counter console | `images/staff-console.png` |
-| A.7 Admin overview | `images/admin-overview.png` |
-| A.8 Camera station | `images/camera-station.png` |
+| ![Landing page](images/landing.png) Landing page | ![Staff counter console](images/staff-console.png) Staff counter console |
+| ![Admin overview](images/admin-overview.png) Admin overview: needs attention and recent operations | ![Camera station](images/camera-station.png) Camera station without a camera: "Camera unavailable" |
 
-## Appendix B: repository guide
-
-| Path | Contents |
-| --- | --- |
-| `client/src` | React app: pages per role, components, hooks, styles (design tokens) |
-| `server` | Express app, tRPC routers, queue engine, auth, realtime |
-| `drizzle` | Schema and SQL migrations |
-| `shared` | Types and constants used by both sides |
-| `tests` | Unit and integration tests |
-| `docs` | Architecture, database, queue engine, realtime, security, computer vision, testing, deployment, design system, demo script |
+| | | | |
+| --- | --- | --- | --- |
+| ![Student home](images/student-home.png) Student home | ![Token detail](images/student-ticket.png) Token after "Call next" | ![Called ticket](images/student-called.png) Called: yellow means go | ![Notifications](images/notifications.png) Notifications |

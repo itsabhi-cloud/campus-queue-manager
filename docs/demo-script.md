@@ -50,7 +50,7 @@ My part was the frontend, UX and presentation. These are my commits on `abhi/fro
 | Performance | Signed-in shell loads lazily, so public pages download 38 kB less JavaScript (minified; 12 kB gzipped) | `33de0fc` |
 | Lighthouse audit | Scores for five pages on mobile and desktop recorded in `docs/testing.md` | `0363837` |
 | README | "What it looks like" section with screenshot grid and demo GIF, plus the capture guide in `docs/images/README.md` | `371f223` |
-| Report and demo | Project report in the SRMIST format; this demo script | `222ff51` and the commit that adds this file |
+| Report and demo | Independent project report (`docs/project-report.md`); this demo script | `222ff51`, `d857eee` and the report rewrite |
 
 Talking points for my part (about 30 seconds, fits in the 3:25 slot):
 

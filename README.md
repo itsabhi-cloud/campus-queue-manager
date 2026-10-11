@@ -115,7 +115,7 @@ React 19 + Vite ──tRPC (HTTP)──▶ Express + tRPC routers ──▶ Queu
 More: [docs/architecture.md](docs/architecture.md) · [docs/database.md](docs/database.md) ·
 [docs/queue-engine.md](docs/queue-engine.md) · [docs/realtime.md](docs/realtime.md) ·
 [docs/security.md](docs/security.md) · [docs/computer-vision.md](docs/computer-vision.md) ·
-[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (academic write-up) · [docs/demo-script.md](docs/demo-script.md) ·
+[docs/deployment.md](docs/deployment.md) · [docs/design-system.md](docs/design-system.md) · [docs/testing.md](docs/testing.md) · [docs/project-report.md](docs/project-report.md) (project report) · [docs/demo-script.md](docs/demo-script.md) ·
 [docs/history/initial-audit.md](docs/history/initial-audit.md) (starting-point audit)
 
 ## Technology
