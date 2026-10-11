@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import * as schema from "../../drizzle/schema";
-import { ENV } from "../_core/env";
+import { databaseSsl, ENV } from "../_core/env";
 import { logger } from "../_core/logger";
 
 function createPool(url: string) {
@@ -14,6 +14,7 @@ function createPool(url: string) {
     timezone: "Z",
     dateStrings: false,
     supportBigNumbers: true,
+    ssl: databaseSsl(ENV.DB_SSL, ENV.DB_SSL_CA).ssl,
   });
   // TIMESTAMP columns are converted using the *session* time zone, so pin every connection to UTC.
   pool.pool.on("connection", connection => {

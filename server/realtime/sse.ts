@@ -7,6 +7,9 @@ import { broker } from "./broker";
 const HEARTBEAT_MS = 25_000;
 const REVALIDATE_MS = 5 * 60_000;
 const open = new Set<Response>();
+/** Enough for several tabs; stops one session from holding sockets and timers without bound. */
+export const MAX_STREAMS_PER_SESSION = 8;
+const streamsBySession = new Map<string, number>();
 
 /**
  * Server-Sent Events stream. Events carry identifiers only (never personal data); clients react by
@@ -19,6 +22,12 @@ export async function realtimeHandler(req: Request, res: Response) {
     res.status(401).json({ error: "unauthenticated" });
     return;
   }
+  const streams = streamsBySession.get(session.sessionId) ?? 0;
+  if (streams >= MAX_STREAMS_PER_SESSION) {
+    res.status(429).json({ error: "too_many_streams" });
+    return;
+  }
+  streamsBySession.set(session.sessionId, streams + 1);
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
@@ -31,7 +40,13 @@ export async function realtimeHandler(req: Request, res: Response) {
   send({ type: "hello", serverTime: Date.now() });
   open.add(res);
 
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
+    const remaining = (streamsBySession.get(session.sessionId) ?? 1) - 1;
+    if (remaining > 0) streamsBySession.set(session.sessionId, remaining);
+    else streamsBySession.delete(session.sessionId);
     clearInterval(heartbeat);
     clearInterval(revalidate);
     unsubscribe();
@@ -52,7 +67,9 @@ export async function realtimeHandler(req: Request, res: Response) {
       logger.warn("SSE session revalidation failed", { error });
     }
   }, REVALIDATE_MS);
+  // Either side may end the stream (client disconnect, session.revoked, shutdown).
   req.on("close", close);
+  res.on("close", close);
 }
 
 /** Ends every open stream (used during graceful shutdown); clients reconnect to another instance. */

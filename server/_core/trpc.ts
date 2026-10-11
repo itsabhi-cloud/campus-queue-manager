@@ -106,3 +106,16 @@ export const staffProcedure = authedProcedure.use(
   requireRole("STAFF", "ADMIN")
 );
 export const adminProcedure = authedProcedure.use(requireRole("ADMIN"));
+
+/**
+ * For actions a shared demo account must not perform (they would break the demo for every other
+ * visitor or hand someone a private account). Use after an authenticated procedure.
+ */
+export const notForDemo = t.middleware(({ ctx, next }) => {
+  if (ctx.user?.isDemo)
+    fail(
+      "FORBIDDEN",
+      "That's turned off in the demo so it keeps working for everyone."
+    );
+  return next();
+});

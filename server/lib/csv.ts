@@ -1,6 +1,6 @@
 /** Minimal RFC 4180 CSV parser: quoted fields, escaped quotes, CRLF/LF, BOM. */
 export function parseCsv(text: string): string[][] {
-  const input = text.replace(/^﻿/, "");
+  const input = text.replace(/^\uFEFF/, "");
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";

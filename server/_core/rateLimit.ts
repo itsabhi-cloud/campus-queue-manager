@@ -49,6 +49,8 @@ export const limiters = {
   // Only failures are counted, so many students behind one campus NAT can still sign in.
   loginFailuresByIp: new RateLimiter(50, 10 * 60_000),
   activationFailuresByIp: new RateLimiter(20, 10 * 60_000),
+  // Every demo sign-in creates a session row; generous enough for a classroom behind one NAT.
+  demoLoginsByIp: new RateLimiter(60, 10 * 60_000),
   mutationsByUser: new RateLimiter(240, 60_000),
   cameraByStation: new RateLimiter(40, 60_000),
 };

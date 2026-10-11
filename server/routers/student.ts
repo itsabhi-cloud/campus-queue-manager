@@ -16,7 +16,12 @@ import {
   updateProfile,
 } from "../accounts";
 import { fail } from "../_core/errors";
-import { authedProcedure, router, studentProcedure } from "../_core/trpc";
+import {
+  authedProcedure,
+  notForDemo,
+  router,
+  studentProcedure,
+} from "../_core/trpc";
 import { db } from "../db/client";
 import { cancelOwnEntry, joinQueue } from "../queue/engine";
 import { catalogView, myActiveView } from "../queue/views";
@@ -206,7 +211,9 @@ export const profileRouter = router({
   update: authedProcedure
     .input(profileUpdateSchema)
     .mutation(({ ctx, input }) => updateProfile(ctx.user, input)),
+  // Demo accounts are shared, so an uploaded photo would be shown to every other visitor.
   setAvatar: authedProcedure
+    .use(notForDemo)
     .input(z.object({ dataUrl: avatarSchema.nullable() }))
     .mutation(({ ctx, input }) => setAvatar(ctx.user.id, input.dataUrl)),
 });
