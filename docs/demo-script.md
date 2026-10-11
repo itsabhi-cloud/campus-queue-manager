@@ -26,7 +26,7 @@
 | 2:55 | **Admin view.** *Needs attention* lists the offline counter and heavy traffic; *Recent operations* shows the traffic change and the merge from the audit log. | C |
 | 3:25 | **Built for phones.** Show the student app at 360 px: bottom tab bar, the ticket fits on screen, *Alerts* lists every change. Mention Lighthouse Accessibility 100 and the reduced-motion support. | A |
 | 3:55 | **Privacy-preserving camera** (only if a webcam is available; otherwise one sentence). Camera station counts people in the browser and sends only a number; it can raise traffic, never identifies anyone. | B |
-| 4:20 | **It's your turn.** Staff call the student. The ticket turns signal yellow: "Go to … now". | B → A |
+| 4:20 | **It's your turn.** Staff finish the token in front (**Start serving**, **Complete**) and press **Call next**. The ticket turns signal yellow: "Go to … now". | B → A |
 | 4:40 | **Close.** Server is the source of truth (transactions, row locks), realtime over Server-Sent Events, role checks on every request, 115 automated tests. Questions. | Any |
 
 If time is short, drop the camera step first, then the merge.
