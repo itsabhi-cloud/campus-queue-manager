@@ -21,7 +21,7 @@ over Server-Sent Events, without a refresh.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/images/student-home.png" alt="Student home on a phone with an active ticket and campus services"><br><sub>Student home: active ticket and live service list</sub></td>
+    <td width="33%"><img src="docs/images/student-home.png" alt="Student home on a phone showing an active cafeteria ticket with nobody ahead"><br><sub>Student home: your active tokens</sub></td>
     <td width="33%"><img src="docs/images/student-ticket.png" alt="Token detail on a phone showing position, people ahead and estimated wait"><br><sub>Token: position, people ahead, estimate and what changed</sub></td>
     <td width="33%"><img src="docs/images/student-called.png" alt="Called ticket in signal yellow telling the student which counter to go to"><br><sub>Called: yellow means go</sub></td>
   </tr>
