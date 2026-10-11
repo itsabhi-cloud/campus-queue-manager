@@ -205,3 +205,53 @@
   display: block;
   font-size: var(--text-md);
 }
+
+/* Demo sign-in (only rendered when the server reports demo mode). */
+.demo-panel {
+  margin-top: var(--s-6);
+  padding: var(--s-5);
+  border: 1px dashed var(--violet);
+  border-radius: var(--r-panel);
+  background: var(--violet-soft);
+  max-width: 520px;
+}
+.demo-panel h2 {
+  font-size: var(--text-md);
+}
+.demo-panel > p {
+  margin-top: var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+.demo-roles {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+.demo-role {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--touch);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  text-align: left;
+  color: var(--violet-strong);
+  transition: border-color var(--fast) var(--ease);
+}
+.demo-role:hover:not(:disabled) {
+  border-color: var(--violet);
+}
+.demo-role:disabled {
+  opacity: 0.6;
+}
+.demo-role strong {
+  display: block;
+  color: var(--ink);
+}
+.demo-role small {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}

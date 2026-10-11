@@ -5,11 +5,16 @@ import {
   Building2,
   Coffee,
   Flag,
+  GraduationCap,
+  Headset,
   Printer,
   ShieldCheck,
+  type LucideIcon,
 } from "lucide-react";
+import type { Role } from "@shared/domain";
 import { BrandMark } from "@/components/AppShell";
 import { HOME_FOR_ROLE, useAuth } from "@/hooks/useAuth";
+import { useDemoMode } from "@/hooks/useDemoMode";
 
 const BOARD = [
   { counter: "Accounts Desk 1", token: "F102", state: "Serving" },
@@ -64,6 +69,61 @@ const SERVICES = [
   },
 ];
 
+const DEMO_ROLES: Record<
+  Role,
+  { label: string; text: string; icon: LucideIcon }
+> = {
+  STUDENT: {
+    label: "Student",
+    text: "Take a token and watch your place update live.",
+    icon: GraduationCap,
+  },
+  STAFF: {
+    label: "Staff",
+    text: "Call, serve and skip tokens at a counter.",
+    icon: Headset,
+  },
+  ADMIN: {
+    label: "Admin",
+    text: "See every queue, manage people and settings.",
+    icon: ShieldCheck,
+  },
+};
+
+/** Shown only when the server reports demo mode; see useDemoMode. */
+function DemoPanel() {
+  const demo = useDemoMode();
+  if (!demo.enabled || demo.roles.length === 0) return null;
+  return (
+    <section className="demo-panel" aria-labelledby="demo-title">
+      <h2 id="demo-title">Try it without an account</h2>
+      <p>Signs you in to a demo account with sample data.</p>
+      <div className="demo-roles">
+        {demo.roles.map(role => {
+          const { label, text, icon: Icon } = DEMO_ROLES[role];
+          const pending = demo.pendingRole === role;
+          return (
+            <button
+              key={role}
+              type="button"
+              className="demo-role"
+              onClick={() => demo.signInAs(role)}
+              disabled={demo.pendingRole !== null}
+              aria-busy={pending}
+            >
+              <Icon size={20} aria-hidden />
+              <span>
+                <strong>{pending ? "Signing in…" : `Try as ${label}`}</strong>
+                <small>{text}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function Landing() {
   const { user } = useAuth();
   useEffect(() => {
@@ -113,6 +173,7 @@ export default function Landing() {
               Accounts are issued by your administration office. Wait times are
               estimates, not appointments.
             </p>
+            {!user && <DemoPanel />}
           </div>
 
           <figure
