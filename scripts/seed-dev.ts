@@ -10,6 +10,10 @@
  *   staff.cafe@queuesense.dev       DevStaff#2026   (Cafeteria counters)
  *   staff.lift@queuesense.dev       DevStaff#2026   (Lift boarding)
  *   student01..student12@queuesense.dev   DevStudent#2026
+ *
+ * For a hosted demo database, override the passwords so the public defaults above don't work there:
+ *   SEED_ADMIN_PASSWORD=… SEED_STAFF_PASSWORD=… SEED_STUDENT_PASSWORD=… pnpm db:seed:dev
+ * Overrides must satisfy the normal password policy.
  */
 import { count } from "drizzle-orm";
 import {
@@ -23,7 +27,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { issueAuthCode } from "../server/accounts";
-import { hashPassword } from "../server/auth/password";
+import { hashPassword, passwordSchema } from "../server/auth/password";
 import type { SessionUser } from "../server/auth/sessions";
 import { closeDatabase, db, withTransaction } from "../server/db/client";
 import { truncateAll } from "../server/db/reset";
@@ -208,6 +212,25 @@ const FIRST = [
 
 async function main() {
   const reset = process.argv.includes("--reset");
+  // Resolve passwords first so a bad override never wipes the database and then stops.
+  const password = (variable: string, fallback: string) => {
+    const value = process.env[variable];
+    if (!value) return fallback;
+    const checked = passwordSchema.safeParse(value);
+    if (!checked.success)
+      throw new Error(`${variable}: ${checked.error.issues[0].message}`);
+    console.log(`Using ${variable} from the environment.`);
+    return value;
+  };
+  const adminHash = await hashPassword(
+    password("SEED_ADMIN_PASSWORD", "DevAdmin#2026")
+  );
+  const staffHash = await hashPassword(
+    password("SEED_STAFF_PASSWORD", "DevStaff#2026")
+  );
+  const studentHash = await hashPassword(
+    password("SEED_STUDENT_PASSWORD", "DevStudent#2026")
+  );
   if (reset) {
     await truncateAll();
     console.log("Cleared existing data.");
@@ -222,9 +245,6 @@ async function main() {
     }
   }
 
-  const adminHash = await hashPassword("DevAdmin#2026");
-  const staffHash = await hashPassword("DevStaff#2026");
-  const studentHash = await hashPassword("DevStudent#2026");
   const now = new Date();
 
   const ids = await withTransaction(async tx => {

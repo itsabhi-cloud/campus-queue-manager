@@ -50,6 +50,48 @@ one-off job: `docker run --env-file prod.env <image> node dist/migrate.js`.
 Cookies are `HttpOnly; Secure; SameSite=Lax` in production. There is no CORS configuration because
 the browser only ever talks to its own origin.
 
+## Step by step: a public demo instance
+
+This is one way to get a shareable HTTPS link for a portfolio or assignment. **It has not yet been
+carried out**; record the result here once it has. Any host works as long as it runs one
+long-lived Node process (SSE needs long-lived connections, so serverless functions won't work) and
+provides MySQL 8 (the version this project is tested on). Check each platform's current pricing and
+free-tier limits yourself, because they change.
+
+1. **Push the repository to GitHub.** CI (`.github/workflows/ci.yml`) type-checks, runs the full
+   test suite against MySQL 8 and builds on every push.
+2. **Create the database.** Use a managed MySQL 8 database on the same platform, or a separate
+   MySQL 8 provider. Copy its connection URL, and URL-encode special characters in the password
+   (`@` → `%40`).
+3. **Create the web service from the repository.** Build with the included `Dockerfile`, or use
+   `pnpm install --frozen-lockfile && pnpm build` with start command `node dist/index.js`.
+4. **Set the environment variables** (see the table above):
+   - `DATABASE_URL`: the URL from step 2
+   - `AUTH_SECRET`: generate with `openssl rand -hex 32`; placeholders are refused
+   - `APP_ORIGIN`: the exact `https://…` address the platform gives the service; localhost and
+     http are refused
+   - `TRUST_PROXY=1`
+   - `NODE_ENV=production` (the Dockerfile already sets it)
+5. **Run migrations once per release:** `node dist/migrate.js`, as the platform's pre-deploy or
+   release command, or as a one-off shell command.
+6. **Create the first administrator:** `node dist/create-admin.js --email you@example.com --name
+   "Your Name"`. Open `/activate` on the live site and set a password with the printed code.
+7. **Choose how demo data gets in.** Either:
+   - **Clean instance:** configure services, counters and staff from the admin pages, then add or
+     import students.
+   - **Demo data, deliberately:** from your own machine, run the development seed against the
+     hosted database with your own passwords:
+     ```bash
+     DATABASE_URL='<hosted url>' SEED_ADMIN_PASSWORD='<private>' \
+       SEED_STAFF_PASSWORD='<shareable>' SEED_STUDENT_PASSWORD='<shareable>' pnpm db:seed:dev
+     ```
+     The seed refuses `NODE_ENV=production` and refuses a database that already has users, unless
+     you add `--reset`, which **deletes everything**. Never share the admin password. Share only the
+     student and staff demo logins, and reseed periodically if visitors leave a mess.
+8. **Check the live site:** `/api/health` returns `"status":"ok"`, sign-in works, and the
+   **Live** badge stays green while staff call a token. If live updates stall, the platform's proxy
+   is buffering `/api/realtime`; see the notes below.
+
 ## Proxy notes (nginx)
 
 ```nginx

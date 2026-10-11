@@ -7,6 +7,18 @@ leave the physical line, watch their live position and an estimated wait, and ge
 their turn approaches. Staff run counters from a console; administrators configure services,
 people and policy.
 
+## For reviewers: where to look
+
+| Area | What to look at |
+| --- | --- |
+| Stack | React 19 + TypeScript (Vite) · Express + tRPC · MySQL 8 + Drizzle ORM · Server-Sent Events · TensorFlow.js |
+| Queue engine | [`server/queue/engine.ts`](server/queue/engine.ts): transactions with row locks, guarded state transitions, priority, merge strategies, wait estimates ([docs](docs/queue-engine.md)) |
+| Data integrity | One active token per student per queue enforced by a generated column + unique index ([`drizzle/schema.ts`](drizzle/schema.ts), [docs](docs/database.md)) |
+| Security | Server-side sessions (HMAC-stored tokens, HttpOnly cookies), RBAC plus object-level checks, CSRF origin check, production config guards ([docs](docs/security.md)) |
+| Realtime | Post-commit, identifier-only SSE events; clients refetch and resync after reconnecting ([docs](docs/realtime.md)) |
+| Tests | Unit and integration tests against a real MySQL database, including concurrency races and the full demo flow over HTTP + SSE ([`tests/`](tests)); CI runs them on every push |
+| Evidence | [Final verification report](docs/final-verification-report.md): what was verified, how, and what still needs a real environment |
+
 ## Problem
 
 Students lose time standing in physical lines at fee counters, print centres, cafeterias and lift
