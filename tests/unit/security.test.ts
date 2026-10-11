@@ -15,6 +15,7 @@ import { RateLimiter } from "../../server/_core/rateLimit";
 import { scrubForLog } from "../../server/_core/logger";
 import {
   databaseSsl,
+  databaseUrlProblem,
   productionOriginProblem,
   productionSecretProblem,
 } from "../../server/_core/env";
@@ -181,5 +182,19 @@ describe("log scrubbing", () => {
       sessionToken: "[redacted]",
       ok: 1,
     });
+  });
+});
+
+describe("database URL", () => {
+  it("refuses TLS parameters the driver would silently ignore", () => {
+    expect(
+      databaseUrlProblem(
+        "mysql://avnadmin:pw@db.aivencloud.com:12345/defaultdb?ssl-mode=REQUIRED"
+      )
+    ).toMatch(/DB_SSL=true/);
+    expect(databaseUrlProblem("mysql://u:p@h:3306/db?sslmode=require")).toMatch(
+      /sslmode/
+    );
+    expect(databaseUrlProblem("mysql://u:p@h:3306/db")).toBeNull();
   });
 });

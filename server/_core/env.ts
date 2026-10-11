@@ -117,6 +117,21 @@ export function databaseSsl(
   };
 }
 
+/**
+ * mysql2 ignores libmysql-style TLS parameters in the URL (with only a warning) and then connects
+ * *without* TLS. Providers such as Aiven append `?ssl-mode=REQUIRED`, so refuse it and point to
+ * DB_SSL instead.
+ */
+export function databaseUrlProblem(url: string): string | null {
+  const params = new URL(url).searchParams;
+  const tlsParam = ["ssl-mode", "sslmode", "ssl"].find(name =>
+    params.has(name)
+  );
+  return tlsParam
+    ? `Remove "?${tlsParam}=…" from DATABASE_URL (the MySQL driver ignores it); set DB_SSL=true and DB_SSL_CA instead.`
+    : null;
+}
+
 export type Env = z.infer<typeof schema>;
 
 function loadEnv(): Env {
@@ -139,7 +154,9 @@ function loadEnv(): Env {
     );
   }
   const env = parsed.data;
-  const sslProblem = databaseSsl(env.DB_SSL, env.DB_SSL_CA).problem;
+  const sslProblem =
+    databaseUrlProblem(env.DATABASE_URL) ??
+    databaseSsl(env.DB_SSL, env.DB_SSL_CA).problem;
   if (sslProblem)
     throw new Error(`Invalid environment configuration:\n  - ${sslProblem}`);
   if (env.NODE_ENV === "production") {
